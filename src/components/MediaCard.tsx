@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { View, Text, Image } from "react-native";
+import fallbackThumbnail from "../../assets/thumbnail-fallback.png";
 
 type MediaCardProps = {
   name: string;
@@ -7,6 +9,7 @@ type MediaCardProps = {
   mediaId?: number;
   mediaSlug?: string;
 };
+
 export default function MediaCard({
   name,
   author,
@@ -14,11 +17,15 @@ export default function MediaCard({
   mediaId,
   mediaSlug,
 }: MediaCardProps) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const showFallback = !thumbnail || failedUrl === thumbnail;
+  
   return (
     <View>
       <Image
-        source={{ uri: thumbnail ?? "" }}
+        source={showFallback ? fallbackThumbnail : { uri: thumbnail }}
         style={{ width: 100, height: 100 }}
+        onError={() => setFailedUrl(thumbnail ?? null)}
       />
       <View>
         <Text>{name}</Text>
