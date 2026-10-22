@@ -22,12 +22,14 @@ export default function MediaCard({
 
   return (
     <View>
-      <Image
-        source={showFallback ? fallbackThumbnail : { uri: thumbnail }}
-        onError={() => setFailedUrl(thumbnail ?? null)}
-        resizeMode="contain"
-        style={{ width: "100%", aspectRatio: 16 / 9 }}
-      />
+      <View style={{ width: "100%", aspectRatio: 16 / 9 }}>
+        <Image
+          source={showFallback ? fallbackThumbnail : { uri: thumbnail }}
+          onError={() => setFailedUrl(thumbnail ?? null)}
+          resizeMode="contain"
+          style={{ width: "100%", height: "100%" }}
+        />
+      </View>
       <View>
         <Text>{name}</Text>
         <Text>{author}</Text>
