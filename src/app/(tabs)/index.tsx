@@ -9,7 +9,11 @@ const item = mediaItems[0];
 export default function HomeScreen() {
   return (
     <ScrollView style={globalStyles.container}>
-      <MediaCard name={item.fileName} author={item.fileAuthor} />
+      <MediaCard
+        name={item.fileName}
+        author={item.fileAuthor}
+        thumbnail={item.fileThumbnailUrl}
+      />
     </ScrollView>
   );
 }

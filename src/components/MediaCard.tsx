@@ -1,4 +1,4 @@
-import { View, Text } from "react-native";
+import { View, Text, Image } from "react-native";
 
 type MediaCardProps = {
   name: string;
@@ -16,9 +16,15 @@ export default function MediaCard({
 }: MediaCardProps) {
   return (
     <View>
-      // TODO: thumbnail image
-      <Text>{name}</Text>
-      <Text>{author}</Text>
+      <Image
+        source={{ uri: thumbnail ?? "" }}
+        style={{ width: 100, height: 100 }}
+      />
+      <View>
+        <Text>{name}</Text>
+        <Text>{author}</Text>
+      </View>
+      // TODO: download button
     </View>
   );
 }
