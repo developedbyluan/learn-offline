@@ -1,10 +1,16 @@
-import { Text, View, StyleSheet } from "react-native";
+import { Text, View, ScrollView } from "react-native";
 import { globalStyles } from "@/styles/global";
 
 export default function HomeScreen() {
   return (
-    <View style={globalStyles.container}>
-      <Text>Hello World</Text>
-    </View>
+    <ScrollView style={globalStyles.container}>
+      // TODO: component for the media card
+      <View>
+        // TODO: thumbnail image
+        <Text>How to Say Hello in French</Text>
+        <Text>AJ Hoge</Text>
+        // TODO: download button
+      </View>
+    </ScrollView>
   );
 }
