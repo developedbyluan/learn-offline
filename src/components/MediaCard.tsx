@@ -21,7 +21,7 @@ export default function MediaCard({
   const showFallback = !thumbnail || failedUrl === thumbnail;
 
   return (
-    <View>
+    <View style={{ marginBottom: 32 }}>
       <View style={{ width: "100%", aspectRatio: 16 / 9 }}>
         <Image
           source={showFallback ? fallbackThumbnail : { uri: thumbnail }}
