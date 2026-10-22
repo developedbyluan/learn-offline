@@ -37,6 +37,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "cca9d4d7-8449-40b6-b327-b8a06c8943b0"
+      }
+    },
+    "owner": "speakfc"
   }
 }
