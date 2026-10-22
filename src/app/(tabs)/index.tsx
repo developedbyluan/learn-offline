@@ -1,36 +1,15 @@
-import { Text, View, ScrollView } from "react-native";
+import { ScrollView } from "react-native";
 import { globalStyles } from "@/styles/global";
 import MediaCard from "@/components/MediaCard";
 
-// Fake Data
-const mediaItems = [
-  {
-    id: 1,
-    title: "How to Say Hello in French",
-    author: "AJ Hoge",
-  },
-  {
-    id: 2,
-    title: "How to Say Hello in Spanish",
-    author: "Maria Lopez",
-  },
-  {
-    id: 3,
-    title: "How to Say Hello in German",
-    author: "John Doe",
-  },
-];
+import { mediaItems } from "@/data/media";
+
+const item = mediaItems[0];
 
 export default function HomeScreen() {
   return (
     <ScrollView style={globalStyles.container}>
-      {mediaItems.map((item) => (
-        <MediaCard
-          key={item.id}
-          title={item.title}
-          author={item.author}
-        />
-      ))}
+      <MediaCard name={item.fileName} author={item.fileAuthor} />
     </ScrollView>
   );
 }
