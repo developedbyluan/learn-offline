@@ -13,8 +13,7 @@ export const globalStyles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   title: {
-    fontSize: 24,
+    fontSize: 14,
     fontWeight: "bold",
-    color: colors.text,
   },
 });
