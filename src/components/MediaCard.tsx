@@ -1,19 +1,24 @@
 import { View, Text } from "react-native";
-import { Link } from "expo-router";
 
 type MediaCardProps = {
-  title: string;
+  name: string;
   author: string;
+  thumbnail?: string;
+  mediaId?: number;
+  mediaSlug?: string;
 };
-
-export default function MediaCard({ title, author }: MediaCardProps) {
+export default function MediaCard({
+  name,
+  author,
+  thumbnail,
+  mediaId,
+  mediaSlug,
+}: MediaCardProps) {
   return (
     <View>
       // TODO: thumbnail image
-      <Text>{title}</Text>
+      <Text>{name}</Text>
       <Text>{author}</Text>
-      // TODO: download button
-      <Link href="/settings">Go to Settings</Link>
     </View>
   );
 }
