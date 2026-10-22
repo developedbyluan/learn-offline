@@ -19,13 +19,14 @@ export default function MediaCard({
 }: MediaCardProps) {
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const showFallback = !thumbnail || failedUrl === thumbnail;
-  
+
   return (
     <View>
       <Image
         source={showFallback ? fallbackThumbnail : { uri: thumbnail }}
-        style={{ width: 100, height: 100 }}
         onError={() => setFailedUrl(thumbnail ?? null)}
+        resizeMode="contain"
+        style={{ width: "100%", aspectRatio: 16 / 9 }}
       />
       <View>
         <Text>{name}</Text>
