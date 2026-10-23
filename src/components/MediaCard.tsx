@@ -35,7 +35,7 @@ export default function MediaCard({
         <Text style={globalStyles.title}>{name}</Text>
         <Text style={styles.authorText}>{author}</Text>
       </View>
-      // TODO: download button
+      {/* TODO: download button */}
     </View>
   );
 }
