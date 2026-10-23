@@ -25,5 +25,6 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   contentContainer: {
     gap: 32,
+    paddingBottom: 32,
   },
 });
