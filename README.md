@@ -54,3 +54,50 @@ Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+# How to run this project on a real android phone
+
+This project uses native Clerk components, so I’ll check whether it can run in Expo Go or needs a development build on the phone.
+
+Use a development build on the phone, then start the project from this Mac. Expo Go cannot run this app, because it depends on `@clerk/expo-native-components` and `expo-dev-client`.
+
+1. On the phone, turn on Developer options and USB debugging. You only need USB debugging if you install over a cable. For the steps below, downloading the APK is enough.
+2. Build an installable development APK:
+
+```bash
+eas build -p android --profile development
+```
+
+The `development` profile in `eas.json` includes the dev client and uses internal distribution, so the result is an APK. 
+
+When the build finishes, open the build page on the phone, download the APK, and install it. 
+
+The file should be tens of megabytes. 
+
+If Android says the package is invalid, delete that download 
+
+and get it again from the build page while logged into the `speakfc` Expo account.
+
+3. Connect the phone and this Mac to the same Wi-Fi. 
+
+In the project folder, start the dev server:
+
+```bash
+npx expo start
+```
+
+4. Open the installed development app on the phone. 
+
+It will show a screen for connecting to the dev server. 
+
+Scan the QR code from the terminal, or enter the `exp://` URL shown there.
+
+The phone loads the JavaScript from your Mac, so edits reload on the device. 
+
+`.env` is read by that dev server, including `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`.
+
+If the phone cannot reach the Mac, stop the server and run `npx expo start --tunnel`.
+
+A preview or production APK is a separate thing: it already contains the JavaScript and does not connect to this dev server. 
+
+Use the development build while you are changing the app.
