@@ -1,5 +1,6 @@
 import { useAuth } from "@clerk/expo";
-import { AuthView, UserButton } from "@clerk/expo/native-components";
+import { AuthView } from "@clerk/expo/native-components";
+import { Redirect } from "expo-router";
 import { useState } from "react";
 import {
   View,
@@ -21,13 +22,13 @@ export default function MainScreen() {
     );
   }
 
+  if (isSignedIn) {
+    return <Redirect href="/(tabs)" />;
+  }
+
   return (
     <View style={styles.container}>
-      {isSignedIn ? (
-        <UserButton />
-      ) : (
-        <Button title="Sign up" onPress={() => setIsAuthOpen(true)} />
-      )}
+      <Button title="Sign In" onPress={() => setIsAuthOpen(true)} />
       <Modal
         animationType="slide"
         visible={isAuthOpen}
