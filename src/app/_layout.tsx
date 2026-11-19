@@ -1,4 +1,5 @@
 import { ClerkProvider } from "@clerk/expo";
+import { resourceCache } from "@clerk/expo/resource-cache";
 import { tokenCache } from "@clerk/expo/token-cache";
 import { Slot } from "expo-router";
 
@@ -10,7 +11,13 @@ if (!publishableKey) {
 
 export default function RootLayout() {
   return (
-    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+    <ClerkProvider
+      publishableKey={publishableKey}
+      tokenCache={tokenCache}
+      // Experimental: saves Clerk's session data on the device so a signed-in
+      // user can open the app with no internet connection.
+      __experimental_resourceCache={resourceCache}
+    >
       <Slot />
     </ClerkProvider>
   );
