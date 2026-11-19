@@ -109,7 +109,7 @@ If `result.userId` does not match the current `userId`, the screen shows the spi
 - `npx expo lint` passes.
 - A request to the endpoint with a sample user id returned an array with the expected `MediaItem` fields.
 - Expo autolinking includes `expo-file-system` and `expo-secure-store` in Android builds.
-- The screen and the offline behavior have not been tested on a device yet.
+- The offline behavior was tested on an Android phone with a preview build.
 
 ## Running it on an Android phone
 
@@ -129,11 +129,9 @@ After signing in, the home tab should show a spinner and then that account's fav
 2. Turn on airplane mode and open the app again.
 3. The home tab should show the saved list with the offline notice.
 
-A development build loads its JavaScript from the Mac, so it may not reload with airplane mode on. To test opening the app from scratch with no connection, use a preview build, which includes the JavaScript:
+A development build loads its JavaScript from the Mac, so it may not reload with airplane mode on. To test opening the app from scratch with no connection, use a preview build, which includes the JavaScript. See [preview-build.md](preview-build.md) for the steps.
 
-```bash
-eas build -p android --profile preview
-```
+This was tested on an Android phone with a preview build: the app opened with no connection and showed the saved favorites.
 
 ## Known limitations
 
