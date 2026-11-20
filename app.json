@@ -8,7 +8,8 @@
     "scheme": "speakfcofflineandroid",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.speakfc.speakfcofflineandroid"
     },
     "android": {
       "adaptiveIcon": {
