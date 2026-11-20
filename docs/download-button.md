@@ -1,5 +1,10 @@
 # Download button on media cards
 
+> **Update:** the button now downloads the media. See [media-downloads.md](media-downloads.md). That change replaced some details on this page:
+> - The `onDownload` prop was removed. `MediaCard` takes `mediaId` and `fileUrl` instead, and renders a `DownloadButton`.
+> - The `Pressable` moved from `MediaCard` into `DownloadButton`.
+> - In `DownloadIcon`, the `IOS_SYMBOL` and `MATERIAL_CODEPOINT` constants became an `ICONS` object with a `download` icon and a `downloaded` icon.
+
 Each favorite on the home tab now has a download button in the bottom-right corner of its card. The button is UI only: tapping it does nothing yet. Downloading the file for offline playback will be added in a later change.
 
 The icon is a circle with a down arrow inside. It's defined in one place so it can be swapped easily.

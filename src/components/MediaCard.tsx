@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { View, Text, Image, Pressable, StyleSheet } from "react-native";
+import { View, Text, Image, StyleSheet } from "react-native";
 import fallbackThumbnail from "../../assets/thumbnail-fallback.png";
 import { globalStyles } from "@/styles/global";
-import DownloadIcon from "@/components/DownloadIcon";
+import DownloadButton from "@/components/DownloadButton";
 
 type MediaCardProps = {
   name: string;
@@ -10,7 +10,7 @@ type MediaCardProps = {
   thumbnail?: string;
   mediaId?: number;
   mediaSlug?: string;
-  onDownload?: () => void;
+  fileUrl?: string;
 };
 
 export default function MediaCard({
@@ -19,7 +19,7 @@ export default function MediaCard({
   thumbnail,
   mediaId,
   mediaSlug,
-  onDownload,
+  fileUrl,
 }: MediaCardProps) {
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const showFallback = !thumbnail || failedUrl === thumbnail;
@@ -39,15 +39,9 @@ export default function MediaCard({
           <Text style={globalStyles.title}>{name}</Text>
           <Text style={styles.authorText}>{author}</Text>
         </View>
-        <Pressable
-          onPress={onDownload}
-          accessibilityRole="button"
-          accessibilityLabel={`Download ${name}`}
-          hitSlop={8}
-          style={({ pressed }) => [styles.downloadButton, pressed && styles.pressed]}
-        >
-          <DownloadIcon size={24} color="#000000" />
-        </Pressable>
+        {mediaId !== undefined && fileUrl ? (
+          <DownloadButton mediaId={mediaId} fileUrl={fileUrl} name={name} />
+        ) : null}
       </View>
     </View>
   );
@@ -65,14 +59,5 @@ const styles = StyleSheet.create({
   },
   textBlock: {
     flex: 1,
-  },
-  downloadButton: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  pressed: {
-    opacity: 0.5,
   },
 });
