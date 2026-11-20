@@ -1,6 +1,8 @@
-# Building an Android preview APK
+# Building a preview build
 
-A preview build is an installable APK that contains the app's JavaScript. Unlike the development build, it doesn't connect to the dev server on the Mac, so it is the build to use for testing the app as users get it, including with no internet connection.
+Steps 1–4 cover Android. For iPhone, see [iOS preview build](#ios-preview-build-iphone).
+
+A preview build is an installable app (an APK on Android) that contains the app's JavaScript. Unlike the development build, it doesn't connect to the dev server on the Mac, so it is the build to use for testing the app as users get it, including with no internet connection.
 
 | | Development build | Preview build |
 | --- | --- | --- |
@@ -86,6 +88,63 @@ To test offline behavior, see [remote-favorites.md](remote-favorites.md#testing-
 
 - **Preview:** every time you want to test JavaScript changes in the preview APK, because the code is built into it.
 - **Development:** only when native code changes, such as adding a library with native code or changing `app.json` plugins. JavaScript changes reach it through the dev server.
+
+## iOS preview build (iPhone)
+
+The same `preview` profile and EAS environment work for iOS, so the Clerk key from step 1 is already in place. The bundle ID is `com.speakfc.speakfcofflineandroid`, set in `app.json` under `ios.bundleIdentifier`.
+
+iOS only installs an app outside the App Store if it is signed for that specific device. EAS calls this internal distribution (Apple calls it ad hoc), and it needs a **paid Apple Developer Program account**. For an option without one, see [Free option: build with Xcode](#free-option-build-with-xcode).
+
+Run these commands yourself in a terminal: Apple asks you to log in, which a non-interactive session can't do.
+
+### 1. Register the iPhone (once per device)
+
+```bash
+npx eas-cli@latest device:create
+```
+
+Choose the website option and open the link or QR code on the iPhone in Safari. Install the profile it offers in **Settings → General → VPN & Device Management**. This sends the iPhone's device ID (UDID) to EAS.
+
+Register the iPhone **before** building. The provisioning profile only includes devices that are registered when the build is made. If you add a device later, run a new build so the profile includes it. To see registered devices, run `npx eas-cli@latest device:list`.
+
+### 2. Start the build
+
+```bash
+npx eas-cli@latest build -p ios --profile preview
+```
+
+The first time, log in with the Apple Developer account and let EAS create the distribution certificate and provisioning profile. EAS stores them, so later builds reuse them.
+
+As with Android, check that the output says `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` was loaded from the `preview` environment. Then follow or cancel the build with the same `build:view` and `build:cancel` commands as in step 3 above.
+
+### 3. Turn on Developer Mode (once per device)
+
+On the iPhone, go to **Settings → Privacy & Security → Developer Mode**, turn it on and restart. iOS 16 and later won't open an internally distributed app without it. The option only appears once an app like this is installed, so you may need to install first (step 4) and then come back here.
+
+### 4. Install and test
+
+Open the build page on the iPhone in Safari and tap **Install**. Then run the same test as on Android (see [remote-favorites.md](remote-favorites.md#testing-offline)).
+
+If sign-in fails on iOS but works on Android, check whether the iOS app also needs to be added in the Clerk dashboard. The app uses Clerk's native sign-in components.
+
+### Free option: build with Xcode
+
+Without a paid account, build and install directly from Xcode on the Mac with a free Apple ID:
+
+1. Connect the iPhone with a USB cable and trust the Mac when asked.
+2. Run:
+   ```bash
+   npx expo run:ios --device --configuration Release
+   ```
+   Pick the iPhone from the list. `Release` builds the JavaScript into the app, so it works without the dev server and can be tested offline.
+3. If Xcode asks for a signing team, choose your free Apple ID's personal team.
+4. Turn on Developer Mode on the iPhone, as in step 3 above.
+
+Notes:
+
+- With a free Apple ID, the app stops opening after 7 days. Run the command again to reinstall it.
+- This is a local build, so it reads `.env` on the Mac, not the EAS environment.
+- The command generates an `ios/` folder. It is git-ignored and generated from `app.json`, so don't edit it by hand.
 
 ## Production builds
 
