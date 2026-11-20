@@ -4,6 +4,7 @@ export const colors = {
   primary: "#FFFFFF",
   secondary: "#F5F5F5",
   text: "#000000",
+  accent: "#007AFF",
 };
 
 export const globalStyles = StyleSheet.create({

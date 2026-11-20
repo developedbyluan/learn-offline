@@ -8,7 +8,7 @@ The download button on each favorite card now downloads the media from `MediaIte
 | --- | --- | --- |
 | Not downloaded | Circle with a down arrow | Starts the download |
 | Downloading | Progress, like `42%`. A spinner if the server doesn't send the file size | Cancels the download |
-| Downloaded | Circle with a checkmark | Asks "Remove download?". **Remove** deletes the file |
+| Downloaded | Filled blue circle with a white checkmark | Asks "Remove download?". **Remove** deletes the file |
 
 If a download fails (for example, with no internet), the app shows a "Download failed" alert with the error, and the button goes back to the down arrow.
 
@@ -72,12 +72,17 @@ The new `downloaded` prop switches between two icons:
 
 ```ts
 const ICONS = {
-  download: { ios: "arrow.down.circle", material: 0xf181 },  // arrow_circle_down
-  downloaded: { ios: "checkmark.circle", material: 0xe86c }, // check_circle
+  download: { ios: "arrow.down.circle", material: 0xf181 },        // arrow_circle_down
+  downloaded: { ios: "checkmark.circle.fill", material: 0xe86c },  // check_circle, filled
 } as const;
 ```
 
 Android and web still draw the Material Symbols character themselves. [download-button.md](download-button.md) explains why.
+
+The downloaded icon is a filled blue circle (`colors.accent`, `#007AFF`, added to `src/styles/global.ts`) with a white checkmark. It ignores the `color` prop.
+
+- **iOS:** `SymbolView` with `type="palette"` and `colors={["#FFFFFF", colors.accent]}`. The first color goes to the checkmark and the second to the circle.
+- **Android and web:** the filled check_circle character from the `MaterialSymbols_400Regular_Filled` font, which ships in the same `@expo-google-fonts/material-symbols` package. In that font the checkmark is a see-through cutout. A white disc, 60% of the icon size, is drawn behind it, so the checkmark is white on any background.
 
 ### `src/components/MediaCard.tsx`
 
