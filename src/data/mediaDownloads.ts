@@ -115,6 +115,49 @@ export function deleteDownload(mediaId: number, fileUrl: string) {
   setState(mediaId, NONE);
 }
 
-export function useMediaDownload(mediaId: number, fileUrl: string): DownloadState {
-  return useSyncExternalStore(subscribeDownloads, () => getDownloadState(mediaId, fileUrl));
+// The local file:// URI of a downloaded media file, or null if it isn't on the phone.
+// Always work the path out with this function instead of saving it: on iOS the app's
+// documents folder path can change after an app update.
+export function getLocalMediaUri(mediaId: number, fileUrl: string): string | null {
+  let file: File;
+  let exists = false;
+  try {
+    file = mediaFile(mediaId, fileUrl);
+    exists = file.exists;
+  } catch {
+    return null;
+  }
+  if (!exists) {
+    // The file was removed outside the app. Correct the cached state so the card updates.
+    if (states.get(mediaId)?.status === "downloaded") setState(mediaId, NONE);
+    return null;
+  }
+  return file.uri;
+}
+
+// What a player should load: the local file when it's downloaded, otherwise the online URL.
+export function getPlaybackUri(mediaId: number, fileUrl: string): string {
+  return getLocalMediaUri(mediaId, fileUrl) ?? fileUrl;
+}
+
+// Like getLocalMediaUri, but re-renders when the download finishes or is removed.
+// Uses the cached download state, so it doesn't check the disk on every render.
+export function useLocalMediaUri(mediaId: number, fileUrl: string): string | null {
+  const state = useMediaDownload(mediaId, fileUrl);
+  return state.status === "downloaded" ? mediaFile(mediaId, fileUrl).uri : null;
+}
+
+export function useMediaDownload(mediaId: number, fileUrl: string): DownloadState;
+export function useMediaDownload(
+  mediaId: number | undefined,
+  fileUrl: string | undefined,
+): DownloadState | null;
+// Returns null when there's nothing to download (no mediaId or fileUrl).
+export function useMediaDownload(
+  mediaId: number | undefined,
+  fileUrl: string | undefined,
+): DownloadState | null {
+  return useSyncExternalStore(subscribeDownloads, () =>
+    mediaId === undefined || !fileUrl ? null : getDownloadState(mediaId, fileUrl),
+  );
 }

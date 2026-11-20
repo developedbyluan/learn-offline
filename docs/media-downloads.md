@@ -10,6 +10,8 @@ The download button on each favorite card now downloads the media from `MediaIte
 | Downloading | Progress, like `42%`. A spinner if the server doesn't send the file size | Cancels the download |
 | Downloaded | Filled blue circle with a white checkmark | Asks "Remove download?". **Remove** deletes the file |
 
+Until a card's media is downloaded, its thumbnail, title and author are dimmed to 40% opacity. The download button stays at full opacity. A card becomes fully visible once its download finishes, and dims again if the download is removed. This way users can tell which media is on the phone at a glance. Cards with no `mediaId` or `fileUrl` can't be downloaded, so they aren't dimmed.
+
 If a download fails (for example, with no internet), the app shows a "Download failed" alert with the error, and the button goes back to the down arrow.
 
 Screen readers announce the button as "Download <title>", "Cancel download of <title>" or "Remove download of <title>", depending on the state.
@@ -59,8 +61,26 @@ The state is kept at module level, not inside a component. This has two effects:
 | `deleteDownload(mediaId, fileUrl)` | Deletes the file. |
 | `subscribeDownloads(listener)` | Calls `listener` whenever any state changes. |
 | `useMediaDownload(mediaId, fileUrl)` | A React hook that returns the state and re-renders when it changes. |
+| `getLocalMediaUri(mediaId, fileUrl)` | Returns the downloaded file's `file://` URI, or `null` if it isn't on the phone. It checks the disk. If the file was removed outside the app, it also resets the cached state to `none`, so the card updates. |
+| `getPlaybackUri(mediaId, fileUrl)` | Returns the local URI when the file is downloaded, otherwise `fileUrl`. |
+| `useLocalMediaUri(mediaId, fileUrl)` | A React hook that returns the local URI or `null`, and re-renders when a download finishes or is removed. It reads the cached state, so it doesn't check the disk on every render. |
 
 Progress only updates the state when the whole percentage changes, so a download triggers at most about 100 re-renders.
+
+#### Using it from a player
+
+```ts
+import { getPlaybackUri } from "@/data/mediaDownloads";
+
+const uri = getPlaybackUri(item.mediaId, item.fileUrl);
+// "file:///…/media/media-42.mp3" when downloaded, otherwise "https://media.speakfc.com/…"
+```
+
+Pass `uri` to `expo-audio` or `expo-video`. In a player screen that should switch to the local file as soon as a download finishes, use `useLocalMediaUri(...) ?? item.fileUrl` instead.
+
+Never save the URI, for example in AsyncStorage or with the favorites list. Work it out each time with these functions. On iOS the app's documents folder path can change after an app update, so a saved absolute path could point to a folder that no longer exists.
+
+These real media URLs were checked: `.mp4` and `.MP3` files on `media.speakfc.com`. Each returns `200` with `video/mp4` or `audio/mpeg` and a `content-length`. They're saved as `.mp4` and `.mp3`, extensions the iOS and Android players recognize.
 
 ### `src/components/DownloadButton.tsx` (new)
 
@@ -88,6 +108,7 @@ The downloaded icon is a filled blue circle (`colors.accent`, `#007AFF`, added t
 
 - The `onDownload` prop was removed, and `fileUrl?: string` was added.
 - The card renders `<DownloadButton mediaId={mediaId} fileUrl={fileUrl} name={name} />` only when both `mediaId` and `fileUrl` are set.
+- The card reads `useMediaDownload(mediaId, fileUrl)` itself and applies `opacity: 0.4` (`NOT_DOWNLOADED_OPACITY`) to the thumbnail and the text block when the status isn't `downloaded`. The opacity is set on those two views, not on the whole card, so the button isn't dimmed. `useMediaDownload` accepts an undefined `mediaId` or `fileUrl` and returns `null` in that case.
 
 ### `src/app/(tabs)/index.tsx`
 
@@ -113,7 +134,7 @@ This change is JavaScript only. `expo-file-system` is already part of the develo
 
 ## Known limitations
 
-- **No offline playback yet.** Nothing plays the downloaded file. A player needs to check `getDownloadState` and use the local file when it's downloaded.
+- **No offline playback yet.** `getPlaybackUri` gives a player the local file, but there's no player yet. Building one needs `expo-audio` and/or `expo-video`, which contain native code, so a new development build is required.
 - **Downloads outlive accounts and favorites.** Signing out doesn't delete them, and neither does removing a favorite. The only way to free the space is the **Remove** button on each card.
 - **Killing the app loses the download.** Its leftover `.part` file in the cache is overwritten by the next attempt, or cleaned up by the system.
 - **No background downloads.** Downloads run only while the app is running. They aren't resumed after a restart.

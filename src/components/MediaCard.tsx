@@ -3,6 +3,10 @@ import { View, Text, Image, StyleSheet } from "react-native";
 import fallbackThumbnail from "../../assets/thumbnail-fallback.png";
 import { globalStyles } from "@/styles/global";
 import DownloadButton from "@/components/DownloadButton";
+import { useMediaDownload } from "@/data/mediaDownloads";
+
+// Opacity of the thumbnail and text while the media isn't downloaded.
+const NOT_DOWNLOADED_OPACITY = 0.4;
 
 type MediaCardProps = {
   name: string;
@@ -23,10 +27,15 @@ export default function MediaCard({
 }: MediaCardProps) {
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const showFallback = !thumbnail || failedUrl === thumbnail;
+  const download = useMediaDownload(mediaId, fileUrl);
+  // Dim everything except the download button until the file is on the phone.
+  // Cards that can't be downloaded (no mediaId or fileUrl) aren't dimmed.
+  const dimmed = download !== null && download.status !== "downloaded";
+  const contentStyle = dimmed ? styles.dimmed : null;
 
   return (
     <View>
-      <View style={{ width: "100%", aspectRatio: 16 / 9 }}>
+      <View style={[{ width: "100%", aspectRatio: 16 / 9 }, contentStyle]}>
         <Image
           source={showFallback ? fallbackThumbnail : { uri: thumbnail }}
           onError={() => setFailedUrl(thumbnail ?? null)}
@@ -35,7 +44,7 @@ export default function MediaCard({
         />
       </View>
       <View style={styles.footer}>
-        <View style={styles.textBlock}>
+        <View style={[styles.textBlock, contentStyle]}>
           <Text style={globalStyles.title}>{name}</Text>
           <Text style={styles.authorText}>{author}</Text>
         </View>
@@ -59,5 +68,8 @@ const styles = StyleSheet.create({
   },
   textBlock: {
     flex: 1,
+  },
+  dimmed: {
+    opacity: NOT_DOWNLOADED_OPACITY,
   },
 });
