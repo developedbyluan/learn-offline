@@ -1,11 +1,8 @@
 import { useState } from "react";
 import { View, Text, Image, Pressable, StyleSheet } from "react-native";
-import { SymbolView } from "expo-symbols";
 import fallbackThumbnail from "../../assets/thumbnail-fallback.png";
 import { globalStyles } from "@/styles/global";
-
-// Placeholder icon. Swap the names here once the icon is decided.
-const DOWNLOAD_ICON = { ios: "arrow.down.circle", android: "download", web: "download" } as const;
+import DownloadIcon from "@/components/DownloadIcon";
 
 type MediaCardProps = {
   name: string;
@@ -49,12 +46,7 @@ export default function MediaCard({
           hitSlop={8}
           style={({ pressed }) => [styles.downloadButton, pressed && styles.pressed]}
         >
-          <SymbolView
-            name={DOWNLOAD_ICON}
-            size={24}
-            tintColor="#000000"
-            fallback={<Text>↓</Text>}
-          />
+          <DownloadIcon size={24} color="#000000" />
         </Pressable>
       </View>
     </View>

@@ -5,6 +5,7 @@
   "dependencies": {
     "@clerk/expo": "^4.14.0",
     "@clerk/expo-native-components": "^0.4.0",
+    "@expo-google-fonts/material-symbols": "^0.4.54",
     "@expo/ui": "~57.0.26",
     "expo": "~57.0.31",
     "expo-constants": "~57.0.22",
