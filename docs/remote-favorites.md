@@ -140,4 +140,4 @@ This was tested on an Android phone with a preview build: the app opened with no
 - Clerk's offline cache (`__experimental_resourceCache`) is experimental and may change when `@clerk/expo` is updated.
 - Signing out does not delete the saved favorites file. Other accounts on the phone can't see it, because each account has its own file.
 - There is no pull-to-refresh or retry. Reload the app to fetch again.
-- Audio and video still stream from their URLs, so they need internet to play. Playing them offline needs a download feature (the `TODO: download button` in `MediaCard`).
+- Audio and video still stream from their URLs, so they need internet to play. Media can now be downloaded to the phone (see [media-downloads.md](media-downloads.md)), but nothing plays the downloaded files yet.
