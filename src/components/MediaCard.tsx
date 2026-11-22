@@ -72,6 +72,7 @@ export default function MediaCard({
         fileUrl,
         fileJsonId: String(fileJsonId),
         title: name,
+        author,
         ...(thumbnail ? { thumbnail } : {}),
       },
     });

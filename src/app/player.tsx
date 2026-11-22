@@ -18,6 +18,7 @@ type PlayerParams = {
   fileUrl: string;
   fileJsonId: string;
   title?: string;
+  author?: string;
   thumbnail?: string;
 };
 
@@ -35,6 +36,8 @@ export default function PlayerScreen() {
   const fileJsonId = Number(params.fileJsonId);
   const fileUrl = params.fileUrl ?? "";
   const title = params.title ?? "";
+  const author = params.author ?? "";
+  const remoteThumbnail = params.thumbnail;
   const insets = useSafeAreaInsets();
 
   // null if the file isn't on the phone (e.g. the download was removed).
@@ -45,12 +48,41 @@ export default function PlayerScreen() {
   const [artworkHidden, setArtworkHidden] = useState(false);
   const [transcript, setTranscript] = useState<TranscriptResult | null>(null);
 
-  // Play even when an iPhone's silent switch is on, like other audio apps.
+  // Play even when an iPhone's silent switch is on, and keep playing when the app goes to
+  // the background or the screen locks. "doNotMix" is required for lock-screen controls
+  // and pauses other apps' audio.
   useEffect(() => {
-    setAudioModeAsync({ playsInSilentMode: true }).catch(() => {
-      // Not critical: playback still works, just respects the silent switch.
+    setAudioModeAsync({
+      playsInSilentMode: true,
+      shouldPlayInBackground: true,
+      interruptionMode: "doNotMix",
+    }).catch(() => {
+      // Not critical: playback still works in the foreground.
     });
   }, []);
+
+  // Lock-screen and notification controls. On Android they're also what keeps background
+  // playback going past ~3 minutes. Removed when the player closes.
+  useEffect(() => {
+    if (!localUri) return;
+    const artworkUrl = getLocalThumbnailUri(mediaId) ?? remoteThumbnail;
+    try {
+      player.setActiveForLockScreen(
+        true,
+        { title, artist: author || undefined, artworkUrl },
+        { showSeekBackward: true, showSeekForward: true },
+      );
+    } catch {
+      // A build without the playback service: the player still works in the foreground.
+    }
+    return () => {
+      try {
+        player.clearLockScreenControls();
+      } catch {
+        // The player may already be released.
+      }
+    };
+  }, [player, localUri, mediaId, title, author, remoteThumbnail]);
 
   // The saved transcript when downloaded; getTranscript fetches it otherwise.
   useEffect(() => {
@@ -104,7 +136,7 @@ export default function PlayerScreen() {
     return <Message text="This lesson isn't downloaded. Download it to play it offline." />;
   }
 
-  const thumbnailUri = getLocalThumbnailUri(mediaId) ?? params.thumbnail;
+  const thumbnailUri = getLocalThumbnailUri(mediaId) ?? remoteThumbnail;
   const transcriptForThis = transcript?.mediaId === mediaId ? transcript : null;
 
   return (
