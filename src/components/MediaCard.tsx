@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, Pressable, StyleSheet } from "react-native";
 import { Image } from "expo-image";
+import { router } from "expo-router";
 import fallbackThumbnail from "../../assets/thumbnail-fallback.png";
 import { globalStyles } from "@/styles/global";
 import DownloadButton from "@/components/DownloadButton";
+import { isAudioUrl } from "@/data/media";
 import { ensureExtras, getLocalThumbnailUri, useMediaDownload } from "@/data/mediaDownloads";
 
 // Opacity of the thumbnail and text while the media isn't downloaded.
@@ -53,8 +55,37 @@ export default function MediaCard({
     }
   }, [needsExtras, mediaId, fileUrl, fileJsonId, thumbnail]);
 
+  // Only downloaded audio opens the player for now.
+  const canOpenPlayer =
+    download?.status === "downloaded" &&
+    !!fileUrl &&
+    isAudioUrl(fileUrl) &&
+    mediaId !== undefined &&
+    fileJsonId !== undefined;
+
+  function openPlayer() {
+    if (!canOpenPlayer || mediaId === undefined || !fileUrl || fileJsonId === undefined) return;
+    router.push({
+      pathname: "/player",
+      params: {
+        mediaId: String(mediaId),
+        fileUrl,
+        fileJsonId: String(fileJsonId),
+        title: name,
+        ...(thumbnail ? { thumbnail } : {}),
+      },
+    });
+  }
+
   return (
-    <View>
+    // The download button inside handles its own taps, so tapping it doesn't open the player.
+    <Pressable
+      onPress={openPlayer}
+      disabled={!canOpenPlayer}
+      accessibilityRole={canOpenPlayer ? "button" : undefined}
+      accessibilityLabel={canOpenPlayer ? `Play ${name}` : undefined}
+      style={({ pressed }) => pressed && styles.cardPressed}
+    >
       <View style={[{ width: "100%", aspectRatio: 16 / 9 }, contentStyle]}>
         <Image
           source={imageUri ? { uri: imageUri } : fallbackThumbnail}
@@ -82,7 +113,7 @@ export default function MediaCard({
           />
         ) : null}
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -101,5 +132,8 @@ const styles = StyleSheet.create({
   },
   dimmed: {
     opacity: NOT_DOWNLOADED_OPACITY,
+  },
+  cardPressed: {
+    opacity: 0.7,
   },
 });

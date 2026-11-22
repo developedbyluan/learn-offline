@@ -1,6 +1,12 @@
 import { useSyncExternalStore } from "react";
 import { Directory, File, Paths, type DownloadOptions } from "expo-file-system";
-import { fetchMediaJson, isMediaJson, mediaJsonUrl, type MediaJson } from "@/data/media";
+import {
+  fetchMediaJson,
+  fileExtension,
+  isMediaJson,
+  mediaJsonUrl,
+  type MediaJson,
+} from "@/data/media";
 
 // Downloaded media lives in <documents>/media, one set of files per mediaId, shared by all accounts:
 //   media-<mediaId><ext>     the media file
@@ -33,15 +39,8 @@ function mediaDirectory() {
   return new Directory(Paths.document, "media");
 }
 
-// Extension from the end of the URL path, e.g. ".mp3". Empty if there isn't one.
-function extensionOf(fileUrl: string) {
-  const path = fileUrl.split(/[?#]/)[0];
-  const match = /\.([a-z0-9]{1,5})$/i.exec(path);
-  return match ? `.${match[1].toLowerCase()}` : "";
-}
-
 function mediaFile(mediaId: number, fileUrl: string) {
-  return new File(mediaDirectory(), `media-${mediaId}${extensionOf(fileUrl)}`);
+  return new File(mediaDirectory(), `media-${mediaId}${fileExtension(fileUrl)}`);
 }
 
 function transcriptFile(mediaId: number) {

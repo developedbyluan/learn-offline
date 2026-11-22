@@ -8,6 +8,7 @@
     "@expo-google-fonts/material-symbols": "^0.4.54",
     "@expo/ui": "~57.0.26",
     "expo": "~57.0.31",
+    "expo-audio": "~57.0.5",
     "expo-constants": "~57.0.22",
     "expo-dev-client": "~57.0.20",
     "expo-device": "~57.0.2",

@@ -1,7 +1,7 @@
 import { ClerkProvider } from "@clerk/expo";
 import { resourceCache } from "@clerk/expo/resource-cache";
 import { tokenCache } from "@clerk/expo/token-cache";
-import { Slot } from "expo-router";
+import { Stack } from "expo-router";
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
 
@@ -18,7 +18,13 @@ export default function RootLayout() {
       // user can open the app with no internet connection.
       __experimental_resourceCache={resourceCache}
     >
-      <Slot />
+      {/* A stack (instead of a plain Slot) so the player can open as a modal sheet over the tabs. */}
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen
+          name="player"
+          options={{ presentation: "modal", animation: "slide_from_bottom" }}
+        />
+      </Stack>
     </ClerkProvider>
   );
 }

@@ -18,6 +18,20 @@ export type MediaItem = {
 
 const API_BASE_URL = "https://flucom-api-bun.developedbyluan.workers.dev";
 
+// Lowercase extension from the end of a URL's path, e.g. ".mp3". Empty if there isn't one.
+export function fileExtension(url: string) {
+  const path = url.split(/[?#]/)[0];
+  const match = /\.([a-z0-9]{1,5})$/i.exec(path);
+  return match ? `.${match[1].toLowerCase()}` : "";
+}
+
+const AUDIO_EXTENSIONS = [".mp3", ".m4a", ".aac", ".wav"];
+
+// Whether a media file is audio, judged by its URL's extension.
+export function isAudioUrl(fileUrl: string) {
+  return AUDIO_EXTENSIONS.includes(fileExtension(fileUrl));
+}
+
 export async function fetchFavorites(userId: string): Promise<MediaItem[]> {
   const response = await fetch(
     `${API_BASE_URL}/favorites/by-user-id/${encodeURIComponent(userId)}`,
