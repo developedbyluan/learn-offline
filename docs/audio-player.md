@@ -42,18 +42,18 @@ A card opens the player only when all of these are true:
 - Its `fileUrl` ends in `.mp3`, `.m4a`, `.aac` or `.wav`, ignoring upper/lower case. That's `isAudioUrl` in `src/data/media.ts`.
 - It has a `mediaId` and a `fileJsonId`.
 
-Other cards, such as videos or items that aren't downloaded, don't respond to taps yet. The download button inside a card still works as before. A tap on the button doesn't open the player.
+Downloaded **videos** now open the same screen, with the video in place of the artwork. See [video-player.md](video-player.md). Cards that aren't downloaded don't respond to taps. The download button inside a card still works as before. A tap on the button doesn't open the player.
 
 ## Files
 
 | File | What it does |
 | --- | --- |
-| `src/app/player.tsx` (new) | The player screen. Reads `mediaId`, `fileUrl`, `fileJsonId`, `title`, `author` and `thumbnail` from the route params. Plays `useLocalMediaUri(...)` with `useAudioPlayer(uri, { updateInterval: 250 })`, and loads the lines with `getTranscript(...)`. If the download was removed, it shows "This lesson isn't downloaded" instead. It calls `setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: true, interruptionMode: "doNotMix" })`. It also calls `player.setActiveForLockScreen(true, { title, artist, artworkUrl }, { showSeekBackward: true, showSeekForward: true })`, and `clearLockScreenControls()` when it closes. On Android, the lock-screen controls are also what keep background playback going: without them, the OS stops it after about 3 minutes. |
+| `src/app/player.tsx` (new) | *Update: this logic now lives in `src/components/player/AudioPlayerScreen.tsx` and `PlayerLayout.tsx`. `player.tsx` only picks the audio or video player (see [video-player.md](video-player.md)).* The player screen. Reads `mediaId`, `fileUrl`, `fileJsonId`, `title`, `author` and `thumbnail` from the route params. Plays `useLocalMediaUri(...)` with `useAudioPlayer(uri, { updateInterval: 250 })`, and loads the lines with `getTranscript(...)`. If the download was removed, it shows "This lesson isn't downloaded" instead. It calls `setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: true, interruptionMode: "doNotMix" })`. It also calls `player.setActiveForLockScreen(true, { title, artist, artworkUrl }, { showSeekBackward: true, showSeekForward: true })`, and `clearLockScreenControls()` when it closes. On Android, the lock-screen controls are also what keep background playback going: without them, the OS stops it after about 3 minutes. |
 | `src/app/_layout.tsx` | The root now uses a `Stack` instead of a `Slot`, with headers hidden, so `player` can open with `presentation: "modal"`. On Android, a modal is a full-screen page that slides up from the bottom. |
 | `src/components/Transcript.tsx` (new) | The transcript list: highlight, auto-scroll and tap to seek. Each line is memoized, so only lines whose highlight changes re-render as the audio plays. |
 | `src/components/SeekBar.tsx` (new) | The seek bar, built with React Native's touch responder props. No native slider library is needed. Also exports `formatTime` (`75` → `01:15`, `3725` → `1:02:05`). |
 | `src/components/Icon.tsx` (new) | Icons for chevron up/down, play, pause, back 5 and forward 5. Uses SF Symbols on iOS. On Android and web it draws Material Symbols font characters the same way as `DownloadIcon`, to avoid the clipping bug. Play and pause use the filled Material font. |
-| `src/components/MediaCard.tsx` | The card is now a `Pressable`. It's enabled only for downloaded audio and opens `/player` with `router.push`. |
+| `src/components/MediaCard.tsx` | The card is now a `Pressable`. It's enabled for downloaded audio and video (`mediaKind`) and opens `/player` with `router.push`. |
 | `src/data/media.ts` | Adds `fileExtension(url)`, moved from `mediaDownloads.ts`, and `isAudioUrl(fileUrl)`. |
 | `app.json` | Adds the `expo-audio` config plugin with `microphonePermission: false`, `recordAudioAndroid: false` and `enableBackgroundPlayback: true`. On Android it adds:<br>• the `MODIFY_AUDIO_SETTINGS`, `FOREGROUND_SERVICE` and `FOREGROUND_SERVICE_MEDIA_PLAYBACK` permissions;<br>• the `AudioControlsService` foreground service (type `mediaPlayback`).<br>On iOS it adds the `audio` background mode. There's no `POST_NOTIFICATIONS` prompt, because Android doesn't require it for media notifications. |
 | `package.json` | Adds `expo-audio` (`~57.0.5`), installed with `npx expo install`. |
@@ -84,7 +84,7 @@ Check that:
 4. Dragging or tapping the seek bar moves the audio, and the time label follows.
 5. The chevron hides and shows the artwork.
 6. Turn on airplane mode, close the player, and open it again. It still plays, with the transcript.
-7. Tapping a video card, or an audio card that isn't downloaded, does nothing.
+7. Tapping an audio card that isn't downloaded does nothing.
 8. Closing the player stops the audio, and the notification disappears.
 9. Play, then press Home. The audio keeps playing, and a media notification shows the title, author and artwork, offline too.
 10. Lock the screen. The audio keeps going, and the lock-screen Play/Pause and ±10 s buttons work.
@@ -94,7 +94,7 @@ Check that:
 
 ## Known limitations
 
-- **Only downloaded audio opens.** Videos and items that aren't downloaded have no player yet.
+- **Only downloaded items open.** Items that aren't downloaded have no player. Videos are covered in [video-player.md](video-player.md).
 - **No mini-player.** Background playback only lasts while the player screen is open. Closing it stops the audio.
 - **The lock-screen skip interval is fixed at 10 s** by expo-audio. The in-app buttons use 5 s.
 - **No camera button.** The screenshot's camera icon was left out until its feature exists.

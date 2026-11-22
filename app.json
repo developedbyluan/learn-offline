@@ -45,6 +45,13 @@
           "recordAudioAndroid": false,
           "enableBackgroundPlayback": true
         }
+      ],
+      [
+        "expo-video",
+        {
+          "supportsBackgroundPlayback": true,
+          "supportsPictureInPicture": false
+        }
       ]
     ],
     "experiments": {

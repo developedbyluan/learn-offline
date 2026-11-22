@@ -32,6 +32,22 @@ export function isAudioUrl(fileUrl: string) {
   return AUDIO_EXTENSIONS.includes(fileExtension(fileUrl));
 }
 
+const VIDEO_EXTENSIONS = [".mp4", ".m4v", ".mov", ".webm"];
+
+// Whether a media file is video, judged by its URL's extension.
+export function isVideoUrl(fileUrl: string) {
+  return VIDEO_EXTENSIONS.includes(fileExtension(fileUrl));
+}
+
+export type MediaKind = "audio" | "video";
+
+// Which player can play a file, or null if neither can.
+export function mediaKind(fileUrl: string): MediaKind | null {
+  if (isAudioUrl(fileUrl)) return "audio";
+  if (isVideoUrl(fileUrl)) return "video";
+  return null;
+}
+
 export async function fetchFavorites(userId: string): Promise<MediaItem[]> {
   const response = await fetch(
     `${API_BASE_URL}/favorites/by-user-id/${encodeURIComponent(userId)}`,

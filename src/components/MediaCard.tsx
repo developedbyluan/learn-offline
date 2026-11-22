@@ -5,7 +5,7 @@ import { router } from "expo-router";
 import fallbackThumbnail from "../../assets/thumbnail-fallback.png";
 import { globalStyles } from "@/styles/global";
 import DownloadButton from "@/components/DownloadButton";
-import { isAudioUrl } from "@/data/media";
+import { mediaKind } from "@/data/media";
 import { ensureExtras, getLocalThumbnailUri, useMediaDownload } from "@/data/mediaDownloads";
 
 // Opacity of the thumbnail and text while the media isn't downloaded.
@@ -55,11 +55,11 @@ export default function MediaCard({
     }
   }, [needsExtras, mediaId, fileUrl, fileJsonId, thumbnail]);
 
-  // Only downloaded audio opens the player for now.
+  // Downloaded audio and video open the player.
   const canOpenPlayer =
     download?.status === "downloaded" &&
     !!fileUrl &&
-    isAudioUrl(fileUrl) &&
+    mediaKind(fileUrl) !== null &&
     mediaId !== undefined &&
     fileJsonId !== undefined;
 
