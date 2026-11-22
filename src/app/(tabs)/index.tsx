@@ -84,6 +84,7 @@ export default function HomeScreen() {
           thumbnail={item.fileThumbnailUrl}
           mediaId={item.mediaId}
           fileUrl={item.fileUrl}
+          fileJsonId={item.fileJsonId}
         />
       ))}
     </ScrollView>

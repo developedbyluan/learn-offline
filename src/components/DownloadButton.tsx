@@ -10,6 +10,7 @@ import {
 type DownloadButtonProps = {
   mediaId: number;
   fileUrl: string;
+  fileJsonId: number;
   thumbnailUrl?: string;
   name: string;
 };
@@ -17,6 +18,7 @@ type DownloadButtonProps = {
 export default function DownloadButton({
   mediaId,
   fileUrl,
+  fileJsonId,
   thumbnailUrl,
   name,
 }: DownloadButtonProps) {
@@ -25,7 +27,7 @@ export default function DownloadButton({
   function handlePress() {
     switch (state.status) {
       case "none":
-        startDownload(mediaId, fileUrl, thumbnailUrl).catch((err: unknown) => {
+        startDownload({ mediaId, fileUrl, fileJsonId, thumbnailUrl }).catch((err: unknown) => {
           const message = err instanceof Error ? err.message : "Something went wrong.";
           Alert.alert("Download failed", message);
         });

@@ -4,7 +4,7 @@ import { Image } from "expo-image";
 import fallbackThumbnail from "../../assets/thumbnail-fallback.png";
 import { globalStyles } from "@/styles/global";
 import DownloadButton from "@/components/DownloadButton";
-import { ensureThumbnail, getLocalThumbnailUri, useMediaDownload } from "@/data/mediaDownloads";
+import { ensureExtras, getLocalThumbnailUri, useMediaDownload } from "@/data/mediaDownloads";
 
 // Opacity of the thumbnail and text while the media isn't downloaded.
 const NOT_DOWNLOADED_OPACITY = 0.4;
@@ -16,6 +16,7 @@ type MediaCardProps = {
   mediaId?: number;
   mediaSlug?: string;
   fileUrl?: string;
+  fileJsonId?: number;
 };
 
 export default function MediaCard({
@@ -25,6 +26,7 @@ export default function MediaCard({
   mediaId,
   mediaSlug,
   fileUrl,
+  fileJsonId,
 }: MediaCardProps) {
   const [failedUris, setFailedUris] = useState<string[]>([]);
   const download = useMediaDownload(mediaId, fileUrl);
@@ -40,15 +42,16 @@ export default function MediaCard({
     (uri): uri is string => !!uri && !failedUris.includes(uri),
   );
 
-  // Save the thumbnail of a downloaded item that doesn't have one yet
-  // (downloaded before thumbnails were saved, or the earlier attempt failed).
-  const needsThumbnail =
-    download?.status === "downloaded" && !download.hasThumbnail && !!thumbnail;
+  // Save what a downloaded item is missing: its thumbnail (if an earlier attempt failed),
+  // or its transcript (items downloaded before transcripts were saved).
+  const needsExtras =
+    download?.status === "downloaded" &&
+    ((!download.hasThumbnail && !!thumbnail) || !download.hasTranscript);
   useEffect(() => {
-    if (needsThumbnail && mediaId !== undefined && thumbnail) {
-      void ensureThumbnail(mediaId, thumbnail);
+    if (needsExtras && mediaId !== undefined && fileUrl && fileJsonId !== undefined) {
+      void ensureExtras({ mediaId, fileUrl, fileJsonId, thumbnailUrl: thumbnail });
     }
-  }, [needsThumbnail, mediaId, thumbnail]);
+  }, [needsExtras, mediaId, fileUrl, fileJsonId, thumbnail]);
 
   return (
     <View>
@@ -69,10 +72,11 @@ export default function MediaCard({
           <Text style={globalStyles.title}>{name}</Text>
           <Text style={styles.authorText}>{author}</Text>
         </View>
-        {mediaId !== undefined && fileUrl ? (
+        {mediaId !== undefined && fileUrl && fileJsonId !== undefined ? (
           <DownloadButton
             mediaId={mediaId}
             fileUrl={fileUrl}
+            fileJsonId={fileJsonId}
             thumbnailUrl={thumbnail}
             name={name}
           />
