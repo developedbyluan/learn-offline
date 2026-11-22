@@ -5,12 +5,14 @@ import Icon from "@/components/Icon";
 import SeekBar from "@/components/SeekBar";
 import Transcript from "@/components/Transcript";
 import type { TranscriptResult } from "@/hooks/useTranscript";
+import { usePlaybackPosition } from "@/hooks/usePlaybackPosition";
 
 const SKIP_SECONDS = 5;
 // How close to the end counts as finished, so Play starts again from the beginning.
 const END_TOLERANCE_SECONDS = 0.25;
 
 type PlayerLayoutProps = {
+  mediaId: number;
   title: string;
   // The artwork (audio) or the video, shown full width above the transcript.
   media: ReactNode;
@@ -27,6 +29,7 @@ type PlayerLayoutProps = {
 // The player screen's UI, shared by the audio and video players. Each player passes in
 // its state and controls; this component doesn't know which engine is playing.
 export default function PlayerLayout({
+  mediaId,
   title,
   media,
   transcript,
@@ -39,6 +42,8 @@ export default function PlayerLayout({
   onSeek,
 }: PlayerLayoutProps) {
   const insets = useSafeAreaInsets();
+  // Opens where the lesson was left off, and remembers the position for next time.
+  usePlaybackPosition({ mediaId, currentTime, duration, isLoaded, playing, onSeek });
   const [mediaHidden, setMediaHidden] = useState(false);
 
   const seekTo = useCallback(

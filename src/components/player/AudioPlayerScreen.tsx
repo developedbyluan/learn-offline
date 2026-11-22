@@ -6,6 +6,7 @@ import PlayerLayout, { playerStyles } from "@/components/player/PlayerLayout";
 import type { TranscriptResult } from "@/hooks/useTranscript";
 
 export type EnginePlayerProps = {
+  mediaId: number;
   localUri: string; // the downloaded file
   title: string;
   author: string;
@@ -16,6 +17,7 @@ export type EnginePlayerProps = {
 // Plays a downloaded audio file with expo-audio. Keeps playing in the background,
 // with lock-screen and notification controls, until the player closes.
 export default function AudioPlayerScreen({
+  mediaId,
   localUri,
   title,
   author,
@@ -65,6 +67,7 @@ export default function AudioPlayerScreen({
 
   return (
     <PlayerLayout
+      mediaId={mediaId}
       title={title}
       media={
         <Image

@@ -39,6 +39,7 @@ export default function PlayerScreen() {
   const Engine = kind === "video" ? VideoPlayerScreen : AudioPlayerScreen;
   return (
     <Engine
+      mediaId={mediaId}
       localUri={localUri}
       title={params.title ?? ""}
       author={params.author ?? ""}

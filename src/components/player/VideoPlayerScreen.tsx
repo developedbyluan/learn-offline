@@ -1,6 +1,6 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { useEvent } from "expo";
+import { useEvent, useEventListener } from "expo";
 import { useVideoPlayer, VideoView, type VideoPlayer } from "expo-video";
 import Icon from "@/components/Icon";
 import PlayerLayout, { playerStyles } from "@/components/player/PlayerLayout";
@@ -19,6 +19,7 @@ function seekVideo(player: VideoPlayer, seconds: number) {
 // Plays a downloaded video file with expo-video, in the artwork's place. The sound keeps
 // playing in the background, with a media notification, until the player closes.
 export default function VideoPlayerScreen({
+  mediaId,
   localUri,
   title,
   author,
@@ -39,20 +40,29 @@ export default function VideoPlayerScreen({
   const { isPlaying } = useEvent(player, "playingChange", { isPlaying: player.playing });
   const { status } = useEvent(player, "statusChange", { status: player.status });
   // null until the first event arrives.
-  const timeUpdate = useEvent(player, "timeUpdate");
   const sourceLoad = useEvent(player, "sourceLoad");
   const isLoaded = status === "readyToPlay";
-  const currentTime = timeUpdate?.currentTime ?? 0;
+  // Kept in state so a seek shows right away, even while paused, when timeUpdate
+  // events may not arrive.
+  const [currentTime, setCurrentTime] = useState(0);
+  useEventListener(player, "timeUpdate", (event) => setCurrentTime(event.currentTime));
   // The status change re-renders, so player.duration is read once the file has loaded,
   // even if sourceLoad fired before the listener was attached.
   const duration = sourceLoad?.duration ?? (isLoaded ? player.duration : 0);
 
   const play = useCallback(() => player.play(), [player]);
   const pause = useCallback(() => player.pause(), [player]);
-  const seek = useCallback((seconds: number) => seekVideo(player, seconds), [player]);
+  const seek = useCallback(
+    (seconds: number) => {
+      seekVideo(player, seconds);
+      setCurrentTime(seconds);
+    },
+    [player],
+  );
 
   return (
     <PlayerLayout
+      mediaId={mediaId}
       title={title}
       media={
         <View style={[playerStyles.media, styles.videoBox]}>

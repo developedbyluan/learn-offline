@@ -23,6 +23,7 @@ From top to bottom:
 - **Tap to seek:** tapping a line jumps the audio to that line's `start`.
 
 **Other behaviors:**
+- **Resume:** reopening a lesson jumps to where you left off, paused. See [playback-position.md](playback-position.md).
 - **Play at the end:** if playback has reached the end, Play starts again from the beginning.
 - **Seek bar:** drag the thumb, or tap anywhere on the track. The time label follows your finger, and the audio seeks when you lift it. With TalkBack or VoiceOver, swiping up or down moves 5 seconds.
 - **Silent switch:** on iPhone, audio plays even with the silent switch on.
