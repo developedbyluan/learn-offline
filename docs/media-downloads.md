@@ -19,8 +19,13 @@ Screen readers announce the button as "Download <title>", "Cancel download of <t
 ## Where files are stored
 
 ```
-<app documents>/media/media-<mediaId><ext>
+<app documents>/media/media-<mediaId><ext>     the media file
+<app documents>/media/media-<mediaId>-thumb    its thumbnail
 ```
+
+- **Thumbnails** are saved right after the media file, from `fileThumbnailUrl`, so a downloaded item shows its real thumbnail offline. The thumbnail file has no extension. Android's and iOS's image decoders read the format from the file's contents.
+  - Saving the thumbnail is best effort. If it fails, the media still counts as downloaded, and the app tries again the next time the card is shown while online.
+  - Items downloaded before thumbnails were saved get theirs the same way.
 
 - **`<ext>`** is the extension at the end of `fileUrl`'s path, ignoring any `?query` or `#hash`. For example, `.mp3` or `.mp4`. If the URL has no extension, the file has none.
 - **One copy per media.** Files are named by `mediaId`, not by user, so every account on the phone shares them. Media files are served from public URLs, so they aren't private to a user. This is unlike the saved favorites list, which is stored per user.
@@ -45,7 +50,7 @@ Keeps the download state and does the file work, using `File`, `Directory` and `
 export type DownloadState =
   | { status: "none" }
   | { status: "downloading"; progress: number | null } // 0–100; null when the size is unknown
-  | { status: "downloaded" };
+  | { status: "downloaded"; hasThumbnail: boolean };
 ```
 
 The state is kept at module level, not inside a component. This has two effects:
@@ -64,6 +69,10 @@ The state is kept at module level, not inside a component. This has two effects:
 | `getLocalMediaUri(mediaId, fileUrl)` | Returns the downloaded file's `file://` URI, or `null` if it isn't on the phone. It checks the disk. If the file was removed outside the app, it also resets the cached state to `none`, so the card updates. |
 | `getPlaybackUri(mediaId, fileUrl)` | Returns the local URI when the file is downloaded, otherwise `fileUrl`. |
 | `useLocalMediaUri(mediaId, fileUrl)` | A React hook that returns the local URI or `null`, and re-renders when a download finishes or is removed. It reads the cached state, so it doesn't check the disk on every render. |
+| `ensureThumbnail(mediaId, thumbnailUrl)` | Saves the thumbnail of a downloaded item that doesn't have one, then sets `hasThumbnail: true`. It does nothing if the item isn't downloaded, already has a thumbnail, or is already saving one. It never rejects. Failures are retried on the next call. |
+| `getLocalThumbnailUri(mediaId)` | Returns the saved thumbnail's `file://` URI, or `null`. It reads the cached state, so it's cheap to call while rendering. |
+
+`startDownload(mediaId, fileUrl, thumbnailUrl?)` sets the state to `downloaded` as soon as the media file is saved, then calls `ensureThumbnail` in the background. `deleteDownload` deletes the thumbnail too. Both files go through the same steps in the helper `downloadTo()`: download to a `.part` file in the cache, then move it into `media/`.
 
 Progress only updates the state when the whole percentage changes, so a download triggers at most about 100 re-renders.
 
@@ -109,6 +118,14 @@ The downloaded icon is a filled blue circle (`colors.accent`, `#007AFF`, added t
 - The `onDownload` prop was removed, and `fileUrl?: string` was added.
 - The card renders `<DownloadButton mediaId={mediaId} fileUrl={fileUrl} name={name} />` only when both `mediaId` and `fileUrl` are set.
 - The card reads `useMediaDownload(mediaId, fileUrl)` itself and applies `opacity: 0.4` (`NOT_DOWNLOADED_OPACITY`) to the thumbnail and the text block when the status isn't `downloaded`. The opacity is set on those two views, not on the whole card, so the button isn't dimmed. `useMediaDownload` accepts an undefined `mediaId` or `fileUrl` and returns `null` in that case.
+- **Thumbnails** are drawn with `Image` from `expo-image`, replacing React Native's `Image`. `expo-image` has been a dependency since the project started, so the development build already includes it. The card tries these sources in order:
+  1. The saved thumbnail (`getLocalThumbnailUri`), for downloaded items. It's shown with `cachePolicy="memory"`, because a local file doesn't need the disk cache.
+  2. The remote `thumbnail` URL, with `cachePolicy="disk"`. `expo-image` keeps a copy on disk regardless of the server's cache headers, so items that aren't downloaded usually also show offline once they've been seen online.
+  3. The bundled fallback image.
+
+  If a source fails to load, the card adds it to a list of failed URIs and moves on to the next one, so it can't loop between two broken images.
+- A `useEffect` calls `ensureThumbnail` when the item is downloaded but has no saved thumbnail. The effect doesn't set React state itself, so it's fine with the `react-hooks/set-state-in-effect` lint rule.
+- It passes `thumbnailUrl={thumbnail}` to `DownloadButton`, which passes it to `startDownload`.
 
 ### `src/app/(tabs)/index.tsx`
 
@@ -131,6 +148,8 @@ This change is JavaScript only. `expo-file-system` is already part of the develo
 5. Reload the app. Cards you downloaded still show the checkmark.
 6. Tap a checkmark, then **Remove**. The down arrow comes back.
 7. If two cards have the same `mediaId`, they change together.
+8. **Offline thumbnails:** download an item while online. In Android Settings, open the app's storage and tap **Clear cache**, not "Clear data". Then reopen the app in airplane mode. The downloaded item still shows its real thumbnail. Items that aren't downloaded show the fallback image, because clearing the cache removed their cached copy.
+9. **Older downloads:** an item downloaded before thumbnails were saved gets its thumbnail the first time the home tab is opened online. After that, step 8 works for it too.
 
 ## Known limitations
 
@@ -139,4 +158,6 @@ This change is JavaScript only. `expo-file-system` is already part of the develo
 - **Killing the app loses the download.** Its leftover `.part` file in the cache is overwritten by the next attempt, or cleaned up by the system.
 - **No background downloads.** Downloads run only while the app is running. They aren't resumed after a restart.
 - **No storage view.** There's no screen showing how much space downloads use, and no "remove all".
+- **Saved thumbnails aren't refreshed.** If the server changes an item's thumbnail, the saved copy stays until the download is removed and downloaded again.
+- **Thumbnails of items that aren't downloaded can still disappear offline.** They come from `expo-image`'s disk cache, which the system or the user can clear.
 - **Plain files only.** `fileUrl` must point to an actual file. A streaming playlist URL (such as HLS `.m3u8`) would save only the playlist, not the media.

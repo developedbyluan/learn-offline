@@ -10,16 +10,22 @@ import {
 type DownloadButtonProps = {
   mediaId: number;
   fileUrl: string;
+  thumbnailUrl?: string;
   name: string;
 };
 
-export default function DownloadButton({ mediaId, fileUrl, name }: DownloadButtonProps) {
+export default function DownloadButton({
+  mediaId,
+  fileUrl,
+  thumbnailUrl,
+  name,
+}: DownloadButtonProps) {
   const state = useMediaDownload(mediaId, fileUrl);
 
   function handlePress() {
     switch (state.status) {
       case "none":
-        startDownload(mediaId, fileUrl).catch((err: unknown) => {
+        startDownload(mediaId, fileUrl, thumbnailUrl).catch((err: unknown) => {
           const message = err instanceof Error ? err.message : "Something went wrong.";
           Alert.alert("Download failed", message);
         });
