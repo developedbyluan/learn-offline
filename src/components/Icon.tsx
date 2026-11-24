@@ -21,6 +21,7 @@ const ICONS = {
   chevronRight: { ios: "chevron.right", material: 0xe5cc, filled: false }, // chevron_right
   history: { ios: "clock.arrow.circlepath", material: 0xe889, filled: false }, // history
   delete: { ios: "trash", material: 0xe872, filled: false }, // delete
+  upload: { ios: "icloud.and.arrow.up", material: 0xe2c3, filled: false }, // cloud_upload
 } as const;
 
 export type IconName = keyof typeof ICONS;

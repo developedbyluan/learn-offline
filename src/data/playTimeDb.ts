@@ -137,6 +137,40 @@ export async function deleteSession(id: string): Promise<void> {
   await getDb().runAsync("DELETE FROM play_sessions WHERE id = ?", id);
 }
 
+// Finished sessions of this user that haven't been uploaded yet, oldest first.
+export async function getUnuploadedSessions(userId: string): Promise<PlaySession[]> {
+  const rows = await getDb().getAllAsync<SessionRow>(
+    `SELECT id, media_id, seconds, started_at, ended_at, started_date, user_id, source
+       FROM play_sessions
+      WHERE user_id = ? AND status = 'done' AND uploaded_at IS NULL
+      ORDER BY started_at ASC`,
+    userId,
+  );
+  return rows.map(toSession);
+}
+
+// The server confirmed this session; it's never sent again, even if deleting it fails.
+export async function markUploaded(id: string): Promise<void> {
+  await getDb().runAsync(
+    "UPDATE play_sessions SET uploaded_at = ? WHERE id = ?",
+    new Date().toISOString(),
+    id,
+  );
+}
+
+function toSession(row: SessionRow): PlaySession {
+  return {
+    id: row.id,
+    mediaId: row.media_id,
+    seconds: row.seconds,
+    startedAt: row.started_at,
+    endedAt: row.ended_at,
+    startedDate: row.started_date,
+    userId: row.user_id,
+    source: "mobile",
+  };
+}
+
 // One entry per lesson, most listening time first.
 export async function getLessonTotals(userId: string): Promise<LessonTotal[]> {
   const rows = await getDb().getAllAsync<{ media_id: number; total: number; count: number }>(
@@ -164,14 +198,5 @@ export async function getLessonSessions(userId: string, mediaId: number): Promis
     userId,
     mediaId,
   );
-  return rows.map((row) => ({
-    id: row.id,
-    mediaId: row.media_id,
-    seconds: row.seconds,
-    startedAt: row.started_at,
-    endedAt: row.ended_at,
-    startedDate: row.started_date,
-    userId: row.user_id,
-    source: "mobile",
-  }));
+  return rows.map(toSession);
 }

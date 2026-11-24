@@ -1,10 +1,13 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
 import { router, useFocusEffect } from "expo-router";
 import { useAuth } from "@clerk/expo";
 import Icon from "@/components/Icon";
+import { showToast } from "@/components/feedback/Toast";
 import { loadCachedFavorites } from "@/data/favoritesCache";
+import { isOfflineError } from "@/data/networkErrors";
+import { uploadMessage, uploadSessions } from "@/data/sessionUpload";
 import { getLocalThumbnailUri } from "@/data/mediaDownloads";
 import { getLessonTotals } from "@/data/playTimeDb";
 import { globalStyles } from "@/styles/global";
@@ -23,41 +26,71 @@ export default function SessionsScreen() {
   const { userId, isLoaded } = useAuth({ treatPendingAsSignedOut: false });
   const [rows, setRows] = useState<LessonRow[] | null>(null);
   const [failed, setFailed] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  // Guards against a double tap before the spinner shows.
+  const uploadInFlight = useRef(false);
+
+  const load = useCallback(
+    async (isCancelled: () => boolean = () => false) => {
+      if (!userId) return;
+      try {
+        const [totals, favorites] = await Promise.all([
+          getLessonTotals(userId),
+          loadCachedFavorites(userId),
+        ]);
+        if (isCancelled()) return;
+        const byMediaId = new Map((favorites ?? []).map((item) => [item.mediaId, item]));
+        setRows(
+          totals.map((total) => {
+            const item = byMediaId.get(total.mediaId);
+            return {
+              ...total,
+              name: item?.fileName ?? `Lesson ${total.mediaId}`,
+              thumbnail: getLocalThumbnailUri(total.mediaId) ?? item?.fileThumbnailUrl ?? null,
+            };
+          }),
+        );
+        setFailed(false);
+      } catch (err) {
+        console.warn("Couldn't load listening history", err);
+        if (!isCancelled()) setFailed(true);
+      }
+    },
+    [userId],
+  );
 
   // Reload every time the tab is shown, so new sessions and deletions appear.
   useFocusEffect(
     useCallback(() => {
-      if (!userId) return;
       let cancelled = false;
-      (async () => {
-        try {
-          const [totals, favorites] = await Promise.all([
-            getLessonTotals(userId),
-            loadCachedFavorites(userId),
-          ]);
-          if (cancelled) return;
-          const byMediaId = new Map((favorites ?? []).map((item) => [item.mediaId, item]));
-          setRows(
-            totals.map((total) => {
-              const item = byMediaId.get(total.mediaId);
-              return {
-                ...total,
-                name: item?.fileName ?? `Lesson ${total.mediaId}`,
-                thumbnail: getLocalThumbnailUri(total.mediaId) ?? item?.fileThumbnailUrl ?? null,
-              };
-            }),
-          );
-          setFailed(false);
-        } catch (err) {
-          console.warn("Couldn't load listening history", err);
-          if (!cancelled) setFailed(true);
-        }
-      })();
+      void load(() => cancelled);
       return () => {
         cancelled = true;
       };
-    }, [userId]),
+    }, [load]),
   );
+
+  // Sends the sessions to the server; uploaded ones are deleted from the phone.
+  const upload = useCallback(async () => {
+    if (!userId || uploadInFlight.current) return;
+    uploadInFlight.current = true;
+    setUploading(true);
+    try {
+      const summary = await uploadSessions(userId);
+      showToast(uploadMessage(summary));
+    } catch (err) {
+      console.warn("Session upload failed", err);
+      showToast(
+        isOfflineError(err)
+          ? "You're offline. Connect to the internet to upload."
+          : "Upload failed. Please try again.",
+      );
+    } finally {
+      uploadInFlight.current = false;
+      setUploading(false);
+      await load();
+    }
+  }, [userId, load]);
 
   if (!isLoaded) return <Centered><ActivityIndicator /></Centered>;
   if (!userId) {
@@ -91,9 +124,27 @@ export default function SessionsScreen() {
       keyExtractor={(row) => String(row.mediaId)}
       ListHeaderComponent={
         <View style={styles.header}>
-          <Text style={styles.heading} accessibilityRole="header">
-            Sessions
-          </Text>
+          <View style={styles.headerRow}>
+            <Text style={styles.heading} accessibilityRole="header">
+              Sessions
+            </Text>
+            <Pressable
+              onPress={upload}
+              disabled={uploading}
+              accessibilityRole="button"
+              accessibilityLabel="Upload sessions"
+              accessibilityHint="Sends your sessions to the server and removes them from this phone"
+              accessibilityState={{ busy: uploading, disabled: uploading }}
+              style={({ pressed }) => [styles.uploadButton, pressed && styles.pressed]}
+            >
+              {uploading ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Icon name="upload" size={18} color="#FFFFFF" />
+              )}
+              <Text style={styles.uploadText}>{uploading ? "Uploading…" : "Upload"}</Text>
+            </Pressable>
+          </View>
           <Text style={styles.grandTotal}>Total {formatDuration(grandTotal)}</Text>
         </View>
       }
@@ -163,6 +214,26 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: 16,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  uploadButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    height: 36,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    backgroundColor: "#0A84FF",
+  },
+  uploadText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
   heading: {
     fontSize: 28,

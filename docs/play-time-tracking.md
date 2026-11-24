@@ -2,7 +2,7 @@
 
 > **Status: built, not yet tested on a device.** It needs a **new development or preview build**, because `expo-sqlite` and `expo-crypto` are native modules.
 
-The app records how long a learner **actually listens** to each lesson. Paused time doesn't count. Each visit to a lesson's player is one **session**, saved on the phone in SQLite. The **Sessions** tab shows this history. Uploading sessions to the API comes later; see [Later: uploading](#later-uploading).
+The app records how long a learner **actually listens** to each lesson. Paused time doesn't count. Each visit to a lesson's player is one **session**, saved on the phone in SQLite. The **Sessions** tab shows this history. The **Upload** button sends them to the server and then removes them from the phone; see [Uploading](#uploading).
 
 ## Rules
 
@@ -156,7 +156,7 @@ Units below the largest are always shown, so lengths line up.
 
 | File | Role |
 | --- | --- |
-| `src/data/playTimeDb.ts` | Opens, migrates and recovers the database. Holds the queries: `insertOpenSession`, `checkpointSession`, `finishSession`, `deleteSession`, `getLessonTotals`, `getLessonSessions` |
+| `src/data/playTimeDb.ts` | Opens, migrates and recovers the database. Holds the queries: `insertOpenSession`, `checkpointSession`, `finishSession`, `deleteSession`, `getLessonTotals`, `getLessonSessions`, `getUnuploadedSessions`, `markUploaded` |
 | `src/hooks/usePlayTimeTracking.ts` | The session lifecycle and the timer logic |
 | `src/components/player/PlayerLayout.tsx` | Calls `usePlayTimeTracking` with `mediaId`, the Clerk `userId`, `playing` and `currentTime` |
 | `src/utils/formatDuration.ts` | "45s" / "3m 20s" / "1h 5m 10s" |
@@ -164,12 +164,70 @@ Units below the largest are always shown, so lengths line up.
 | `src/app/(tabs)/sessions.tsx` | The per-lesson list |
 | `src/app/sessions/[mediaId].tsx` | One lesson's sessions, with swipe to delete |
 | `src/app/_layout.tsx` | `GestureHandlerRootView`, and the detail screen's header |
-| `src/components/Icon.tsx` | Adds `chevronRight`, `history` and `delete` |
+| `src/components/Icon.tsx` | Adds `chevronRight`, `history`, `delete` and `upload` |
+| `src/data/api.ts` | `API_BASE_URL` (from `EXPO_PUBLIC_API_BASE_URL`) and `basicAuthHeader()` |
+| `src/data/sessionUpload.ts` | `postSession`, `uploadSessions` and `uploadMessage` |
+| `src/data/media.ts` | Uses `API_BASE_URL` from `api.ts` |
 | `package.json`, `app.json` | Add `expo-sqlite` (with its config plugin) and `expo-crypto` |
 
-## Later: uploading
+## Uploading
 
-This isn't built yet. The session format above is meant to upload as is. For example, `POST /play-sessions` would send an array of `'done'` sessions where `uploaded_at IS NULL`, and the server would ignore `id`s it already has. After a successful upload, the app sets `uploaded_at` on those rows.
+The **Upload** button is at the top right of the Sessions tab, next to the title. It's a blue pill with a cloud icon, and it only shows when there are sessions in the list. While the upload runs, it shows a spinner and "Uploading…" and can't be tapped again. Afterwards a toast reports the result and the list reloads. The code is in `src/data/sessionUpload.ts`.
+
+### What's sent
+- Only the **signed-in user's finished sessions** that haven't been uploaded yet (`status = 'done' AND uploaded_at IS NULL`), oldest first.
+- A session whose player is still open is never sent.
+- Sessions saved without a user stay on the phone.
+
+### The request
+**One request per session:** `POST ${EXPO_PUBLIC_API_BASE_URL}/sessions`.
+
+| Header | Value |
+| --- | --- |
+| `Authorization` | `Basic <base64("user:pass")>`, from `EXPO_PUBLIC_API_USER` and `EXPO_PUBLIC_API_PASS` (`basicAuthHeader()` in `src/data/api.ts`) |
+| `Content-Type` | `application/json` |
+
+| Body field | From |
+| --- | --- |
+| `mediaId` | `mediaId` |
+| `mediaSlug` | the lesson's `fileSlug` from the saved favorites list. Left out if unknown |
+| `timeSpent` | `seconds`, as an integer |
+| `date` | `startedDate` (local `YYYY-MM-DD`) |
+| `timestamp` | `startedAt` (ISO 8601) |
+| `userId` | the signed-in Clerk user ID |
+| `deviceSource` | `"mobile"` |
+
+`id` is never sent, because the server assigns its own. A success is `200` with a JSON array holding the inserted row.
+
+### After each session
+1. **The server says 200:** the session is **marked uploaded** (`uploaded_at`), then **deleted** from the phone. This happens per session, right away, so if the upload stops halfway, the ones that already worked aren't sent again. If the delete fails, the mark still keeps it from being re-sent.
+2. **Offline or 401:** the upload **stops**, because the rest would fail the same way. Nothing that wasn't confirmed is deleted.
+3. **Any other error,** e.g. a `500` from a `mediaId` the server doesn't know: that session **stays on the phone**, is counted as failed, and the upload **continues** with the next one. One bad session can't block every future upload.
+
+Raw errors are logged with `console.warn`.
+
+### Messages
+| Result | Toast |
+| --- | --- |
+| All sent | "Uploaded 5 sessions." / "Uploaded 1 session." |
+| Some sent | "Uploaded 3 of 5 sessions. 2 couldn't be sent. Try again later." |
+| None sent, offline | "You're offline. Connect to the internet to upload." |
+| None sent, 401 | "Upload failed: the server didn't accept the app's login." |
+| None sent, other | "Upload failed. Please try again." |
+| Nothing waiting | "Everything is already uploaded." |
+
+### After uploading
+- Uploaded sessions are **deleted from the phone**. The Sessions tab then shows only sessions recorded since the last upload, and the server keeps the full history.
+- To check what arrived: `GET ${API_BASE_URL}/sessions/by-user-id/<userId>?limit=20&offset=0` (no auth, newest first).
+
+### Environment
+- `EXPO_PUBLIC_API_BASE_URL`, `EXPO_PUBLIC_API_USER` and `EXPO_PUBLIC_API_PASS` are in `.env` for local development. They're also in the EAS **development** and **preview** environments, for cloud builds.
+- `API_BASE_URL` (`src/data/api.ts`) falls back to the Workers URL if the variable is missing. `media.ts` uses it too.
+- Missing credentials make every upload fail with a logged error.
+
+### Risks
+- **The credentials are inside the app.** Every `EXPO_PUBLIC_` variable is embedded in the JavaScript bundle, so anyone with the APK can extract the username and password and post sessions. That's fine for internal testing. Before a public release, have the server verify the learner's **Clerk session token** instead of a shared password.
+- **Possible duplicates:** the server doesn't accept our session `id`, so it can't recognize a repeat. If a request reaches the server but the response is lost, for example the connection drops at that exact moment, that session stays on the phone and is sent again next time. Sending one session at a time limits this to at most one duplicate per interrupted upload. A server-side fix would be to accept a client `sessionId` with a unique index.
 
 ## Testing on a phone
 
@@ -186,3 +244,7 @@ These steps need a new development build with `expo-sqlite` and `expo-crypto`.
 9. Force-quit while playing, then reopen: the session appears, with at most about 10 s missing.
 10. Change the phone's time mid-session: the duration is still right.
 11. A session started before midnight and ended after it has the earlier `startedDate`.
+12. **Upload:** record two short sessions, then tap Upload. The toast says "Uploaded 2 sessions." and the list empties. Both sessions appear at `GET /sessions/by-user-id/<userId>`.
+13. **Upload in airplane mode:** the offline toast shows, and the sessions stay.
+14. **Wrong password** in `.env` (restart the bundler): the 401 toast shows, and nothing is deleted.
+15. **Double-tap Upload:** only one upload runs.
