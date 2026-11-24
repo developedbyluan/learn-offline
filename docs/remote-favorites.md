@@ -76,7 +76,7 @@ When `userId` is available, the screen:
 1. Reads the saved list and shows it right away if there is one.
 2. Calls `fetchFavorites`.
 3. On success, saves the new list and shows it.
-4. On failure, keeps showing the saved list with an offline notice. With no saved list, it shows the error.
+4. On failure, it decides the cause with `isOfflineError` (`src/data/networkErrors.ts`): **offline** or another **failed** request. It keeps showing the saved list with a `StatusBanner` for that cause. With no saved list, it shows a friendly "can't load" screen with **Try again**, never the raw error. The raw error goes to `console.warn`.
 
 The screen shows one of these states:
 
@@ -87,9 +87,10 @@ The screen shows one of these states:
 | No saved list, request in flight | Spinner |
 | Saved list, request in flight | The saved list |
 | Request succeeded | One `MediaCard` per item (`id`, `fileName`, `fileAuthor`, `fileThumbnailUrl`) |
-| Request failed, saved list exists | The saved list, with "Can't reach the server. Showing your saved favorites." |
-| Request failed, no saved list | The error message |
-| Empty list | "You have no favorites yet." (plus the offline notice if the request failed) |
+| Request failed (offline), saved list exists | The saved list, under a gray rounded banner with a Wi-Fi-off icon: "**You're offline.** Downloaded lessons still play. Pull down to refresh." |
+| Request failed (other), saved list exists | The saved list, under a banner with an info icon: "**Couldn't update your favorites.** Showing your last saved list. Pull down to try again." |
+| Request failed, no saved list | A centered icon, then "You're offline" / "Connect to the internet to load your favorites." (or "Couldn't load your favorites" / "Please try again in a moment."), and a blue **Try again** button |
+| Empty list | "You have no favorites yet." (plus the matching banner if the request failed) |
 
 The result is stored together with the `userId` it belongs to:
 
@@ -141,3 +142,5 @@ This was tested on an Android phone with a preview build: the app opened with no
 - Signing out does not delete the saved favorites file. Other accounts on the phone can't see it, because each account has its own file.
 - There is no pull-to-refresh or retry. Reload the app to fetch again.
 - Audio and video still stream from their URLs, so they need internet to play. Media can now be downloaded to the phone (see [media-downloads.md](media-downloads.md)), but nothing plays the downloaded files yet.
+
+> **Update:** downloaded items now update themselves when `updatedAtOfMedia` changes, and the list refreshes on pull-to-refresh and when the app returns. See [download-updates.md](download-updates.md).

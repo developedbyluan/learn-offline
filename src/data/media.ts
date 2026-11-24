@@ -14,9 +14,42 @@ export type MediaItem = {
   fileOrder: number;
   fileUrl: string;
   fileJsonId: number;
+  // When the media, thumbnail or transcript last changed, in ms since epoch.
+  // Optional: favorites saved by an older app version don't have it.
+  updatedAtOfMedia?: number;
 };
 
 const API_BASE_URL = "https://flucom-api-bun.developedbyluan.workers.dev";
+
+// Lowercase extension from the end of a URL's path, e.g. ".mp3". Empty if there isn't one.
+export function fileExtension(url: string) {
+  const path = url.split(/[?#]/)[0];
+  const match = /\.([a-z0-9]{1,5})$/i.exec(path);
+  return match ? `.${match[1].toLowerCase()}` : "";
+}
+
+const AUDIO_EXTENSIONS = [".mp3", ".m4a", ".aac", ".wav"];
+
+// Whether a media file is audio, judged by its URL's extension.
+export function isAudioUrl(fileUrl: string) {
+  return AUDIO_EXTENSIONS.includes(fileExtension(fileUrl));
+}
+
+const VIDEO_EXTENSIONS = [".mp4", ".m4v", ".mov", ".webm"];
+
+// Whether a media file is video, judged by its URL's extension.
+export function isVideoUrl(fileUrl: string) {
+  return VIDEO_EXTENSIONS.includes(fileExtension(fileUrl));
+}
+
+export type MediaKind = "audio" | "video";
+
+// Which player can play a file, or null if neither can.
+export function mediaKind(fileUrl: string): MediaKind | null {
+  if (isAudioUrl(fileUrl)) return "audio";
+  if (isVideoUrl(fileUrl)) return "video";
+  return null;
+}
 
 export async function fetchFavorites(userId: string): Promise<MediaItem[]> {
   const response = await fetch(

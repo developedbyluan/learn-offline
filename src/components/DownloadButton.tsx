@@ -1,5 +1,8 @@
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text } from "react-native";
 import DownloadIcon from "@/components/DownloadIcon";
+import { confirm } from "@/components/feedback/ConfirmDialog";
+import { showToast } from "@/components/feedback/Toast";
+import { isOfflineError } from "@/data/networkErrors";
 import {
   cancelDownload,
   deleteDownload,
@@ -12,6 +15,7 @@ type DownloadButtonProps = {
   fileUrl: string;
   fileJsonId: number;
   thumbnailUrl?: string;
+  updatedAtOfMedia?: number;
   name: string;
 };
 
@@ -20,43 +24,54 @@ export default function DownloadButton({
   fileUrl,
   fileJsonId,
   thumbnailUrl,
+  updatedAtOfMedia,
   name,
 }: DownloadButtonProps) {
   const state = useMediaDownload(mediaId, fileUrl);
+  // A newer version is downloading in the background; the old copy still plays.
+  const updating = state.status === "downloaded" && state.updating;
 
   function handlePress() {
+    if (updating) {
+      // Keeps the old copy; the next refresh tries again.
+      cancelDownload(mediaId);
+      return;
+    }
     switch (state.status) {
       case "none":
-        startDownload({ mediaId, fileUrl, fileJsonId, thumbnailUrl }).catch((err: unknown) => {
-          const message = err instanceof Error ? err.message : "Something went wrong.";
-          Alert.alert("Download failed", message);
+        startDownload({ mediaId, fileUrl, fileJsonId, thumbnailUrl, updatedAtOfMedia }).catch((err: unknown) => {
+          console.warn("Download failed", err);
+          showToast(downloadErrorMessage(err));
         });
         break;
       case "downloading":
         cancelDownload(mediaId);
         break;
       case "downloaded":
-        Alert.alert("Remove download?", name, [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Remove",
-            style: "destructive",
-            onPress: () => {
-              try {
-                deleteDownload(mediaId, fileUrl);
-              } catch (err: unknown) {
-                const message = err instanceof Error ? err.message : "Something went wrong.";
-                Alert.alert("Couldn't remove download", message);
-              }
-            },
-          },
-        ]);
+        void confirmRemove();
         break;
     }
   }
 
-  const label =
-    state.status === "downloading"
+  async function confirmRemove() {
+    const confirmed = await confirm({
+      title: "Remove download?",
+      message: name,
+      confirmText: "Remove",
+      destructive: true,
+    });
+    if (!confirmed) return;
+    try {
+      deleteDownload(mediaId, fileUrl);
+    } catch (err: unknown) {
+      console.warn("Couldn't remove download", err);
+      showToast("Couldn't remove this download. Please try again.");
+    }
+  }
+
+  const label = updating
+    ? `Updating ${name}. Tap to cancel`
+    : state.status === "downloading"
       ? `Cancel download of ${name}`
       : state.status === "downloaded"
         ? `Remove download of ${name}`
@@ -70,7 +85,9 @@ export default function DownloadButton({
       hitSlop={8}
       style={({ pressed }) => [styles.button, pressed && styles.pressed]}
     >
-      {state.status === "downloading" ? (
+      {updating ? (
+        <ActivityIndicator size="small" color="#007AFF" />
+      ) : state.status === "downloading" ? (
         state.progress === null ? (
           <ActivityIndicator color="#000000" />
         ) : (
@@ -83,6 +100,13 @@ export default function DownloadButton({
       )}
     </Pressable>
   );
+}
+
+// A friendly message instead of the raw system error.
+function downloadErrorMessage(err: unknown) {
+  return isOfflineError(err)
+    ? "You're offline. Connect to the internet to download this lesson."
+    : "Couldn't download this lesson. Please try again.";
 }
 
 const styles = StyleSheet.create({

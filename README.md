@@ -101,3 +101,96 @@ If the phone cannot reach the Mac, stop the server and run `npx expo start --tun
 A preview or production APK is a separate thing: it already contains the JavaScript and does not connect to this dev server. 
 
 Use the development build while you are changing the app.
+
+# Handle MP4 File with Unusual Header
+which causes the player to unable to read the mp4's duration.
+
+Check this specific favorite item for me:
+```json
+{
+    "id": 365,
+    "mediaId": 191,
+    "createdAt": 1794938598,
+    "fileName": "Macy's Thanksgiving Day Parade turns 100",
+    "fileSlug": "macy-s-thanksgiving-day-parade-turns-100",
+    "fileStatus": "pending",
+    "fileAuthor": "Luan T.",
+    "fileAuthorUrl": "https://www.speakfc.com",
+    "fileType": "vocab",
+    "fileThumbnailUrl": "https://cdn.britannica.com/40/263240-050-7B90362B/Turkey-float-Macys-Thanksgiving-Day-Parade-November-2023-New-York.jpg",
+    "fileProjectId": 10,
+    "fileFolderId": 59,
+    "fileOrder": 0.2,
+    "fileUrl": "https://media.speakfc.com/lict-chapter2/macy-s-thanksgiving-day-parade-turns-100.mp4",
+    "fileJsonId": 185
+  },
+```
+it looks like the app is unable to calculate the duration because the end time on the seek bar show "00:00" so users can seek, they must play from start to finish.
+
+This issue doesn't happen to other videos, like this one:
+```
+{
+    "id": 314,
+    "mediaId": 157,
+    "createdAt": 1790088932,
+    "fileName": "The X Sound (3/3)",
+    "fileSlug": "the-x-sound-3-of-3",
+    "fileStatus": "processing",
+    "fileAuthor": "Paul Gruber",
+    "fileAuthorUrl": "https://www.miraclepronunciation.com",
+    "fileType": "video",
+    "fileThumbnailUrl": "https://media.speakfc.com/u11-the-x-sound-thumbnail.png",
+    "fileProjectId": 3,
+    "fileFolderId": 49,
+    "fileOrder": 2,
+    "fileUrl": "https://media.speakfc.com/unit-11-part-3-of-3.mp4",
+    "fileJsonId": 148
+  }
+```
+
+or this one:
+```
+{
+    "id": 369,
+    "mediaId": 187,
+    "createdAt": 1795333884,
+    "fileName": "Will Arrives at Monica's Apartment for Thanksgiving",
+    "fileSlug": "will-arrives-at-monica-s-apartment-for-thanksgiving",
+    "fileStatus": "completed",
+    "fileAuthor": "Luan T.",
+    "fileAuthorUrl": "https://www.speakfc.com",
+    "fileType": "vocab",
+    "fileThumbnailUrl": "https://media.speakfc.com/lict-chapter2/will-arrives-at-monica-s-house-on-thanksgiving-sm.png",
+    "fileProjectId": 10,
+    "fileFolderId": 59,
+    "fileOrder": 0,
+    "fileUrl": "https://media.speakfc.com/lict-chapter2/will-arrives-at-monica-home-on-thanksgiving-sm.mp4",
+    "fileJsonId": 181
+  },
+```
+This isn't an app bug. That one MP4 is saved in a format that doesn't record its own length.
+
+**What's different about the file.** I read the internal layout of the broken video and of one that works:
+
+| | Macy's Parade (broken) | Will Arrives… (works) |
+|---|---|---|
+| Layout | **Fragmented MP4**: a near-empty header, followed by hundreds of small pieces | Regular MP4: one block of video, then a full index |
+| Stated length | **0** in the main header, **0** in the video track, **0** in the audio track | 122.25 s |
+| Seek index | None. There's only a fragment table at the very end of the file | Full sample table |
+| Made by | ffmpeg (`Lavf62.3.100`), with fragmented output turned on | — |
+
+The player reads the length from the file's header, where it's 0, so the seek bar shows 00:00. The seek bar only allows seeking once it knows the length. The video's own player on Android also usually treats a fragmented file without a seek index as one you can't seek. So even if the app worked out the length some other way, seeking would probably still fail.
+
+**The fix is on the server: rewrite the file without re-encoding it.** It takes a few seconds and the quality doesn't change:
+
+```bash
+ffmpeg -i macy-s-thanksgiving-day-parade-turns-100.mp4 -c copy -movflags +faststart fixed.mp4
+```
+
+Upload `fixed.mp4` to the same URL. `+faststart` also moves the index to the front, which helps when someone plays the video online.
+
+**Then on the phone:** the app keeps the copy it already downloaded, so tap the checkmark to remove it, then download it again.
+
+**Why it happened:** something in the pipeline ran ffmpeg with fragmented output, for example `-movflags frag_keyframe+empty_moov`. Recording or streaming tools often do this. Other new uploads made the same way will have the same problem, so it's worth finding that step. The `vocab` items in `lict-chapter2` are the likely place, since this is one of them.
+
+If you want, I can write a small script that checks every `fileUrl` in your favorites for this problem without downloading the whole files.

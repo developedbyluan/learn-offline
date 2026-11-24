@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, Pressable, StyleSheet } from "react-native";
 import { Image } from "expo-image";
+import { router } from "expo-router";
 import fallbackThumbnail from "../../assets/thumbnail-fallback.png";
 import { globalStyles } from "@/styles/global";
 import DownloadButton from "@/components/DownloadButton";
+import { mediaKind } from "@/data/media";
 import { ensureExtras, getLocalThumbnailUri, useMediaDownload } from "@/data/mediaDownloads";
 
 // Opacity of the thumbnail and text while the media isn't downloaded.
@@ -17,6 +19,7 @@ type MediaCardProps = {
   mediaSlug?: string;
   fileUrl?: string;
   fileJsonId?: number;
+  updatedAtOfMedia?: number;
 };
 
 export default function MediaCard({
@@ -27,6 +30,7 @@ export default function MediaCard({
   mediaSlug,
   fileUrl,
   fileJsonId,
+  updatedAtOfMedia,
 }: MediaCardProps) {
   const [failedUris, setFailedUris] = useState<string[]>([]);
   const download = useMediaDownload(mediaId, fileUrl);
@@ -49,15 +53,53 @@ export default function MediaCard({
     ((!download.hasThumbnail && !!thumbnail) || !download.hasTranscript);
   useEffect(() => {
     if (needsExtras && mediaId !== undefined && fileUrl && fileJsonId !== undefined) {
-      void ensureExtras({ mediaId, fileUrl, fileJsonId, thumbnailUrl: thumbnail });
+      void ensureExtras({ mediaId, fileUrl, fileJsonId, thumbnailUrl: thumbnail, updatedAtOfMedia });
     }
-  }, [needsExtras, mediaId, fileUrl, fileJsonId, thumbnail]);
+  }, [needsExtras, mediaId, fileUrl, fileJsonId, thumbnail, updatedAtOfMedia]);
+
+  // Downloaded audio and video open the player.
+  const canOpenPlayer =
+    download?.status === "downloaded" &&
+    !!fileUrl &&
+    mediaKind(fileUrl) !== null &&
+    mediaId !== undefined &&
+    fileJsonId !== undefined;
+
+  function openPlayer() {
+    if (!canOpenPlayer || mediaId === undefined || !fileUrl || fileJsonId === undefined) return;
+    router.push({
+      pathname: "/player",
+      params: {
+        mediaId: String(mediaId),
+        fileUrl,
+        fileJsonId: String(fileJsonId),
+        title: name,
+        author,
+        ...(thumbnail ? { thumbnail } : {}),
+      },
+    });
+  }
 
   return (
-    <View>
+    // The download button inside handles its own taps, so tapping it doesn't open the player.
+    <Pressable
+      onPress={openPlayer}
+      disabled={!canOpenPlayer}
+      accessibilityRole={canOpenPlayer ? "button" : undefined}
+      accessibilityLabel={canOpenPlayer ? `Play ${name}` : undefined}
+      style={({ pressed }) => pressed && styles.cardPressed}
+    >
       <View style={[{ width: "100%", aspectRatio: 16 / 9 }, contentStyle]}>
         <Image
-          source={imageUri ? { uri: imageUri } : fallbackThumbnail}
+          source={
+            imageUri === localThumbnail && imageUri && download?.status === "downloaded"
+              ? // An update replaces the file at the same path, so the cache key carries the
+                // version; otherwise the old image would stay in expo-image's memory cache.
+                { uri: imageUri, cacheKey: `${imageUri}#${download.version}` }
+              : imageUri
+                ? { uri: imageUri }
+                : fallbackThumbnail
+          }
           // Local files don't need the disk cache; remote thumbnails do, for offline use.
           cachePolicy={imageUri && imageUri === localThumbnail ? "memory" : "disk"}
           onError={() => {
@@ -78,11 +120,12 @@ export default function MediaCard({
             fileUrl={fileUrl}
             fileJsonId={fileJsonId}
             thumbnailUrl={thumbnail}
+            updatedAtOfMedia={updatedAtOfMedia}
             name={name}
           />
         ) : null}
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -101,5 +144,8 @@ const styles = StyleSheet.create({
   },
   dimmed: {
     opacity: NOT_DOWNLOADED_OPACITY,
+  },
+  cardPressed: {
+    opacity: 0.7,
   },
 });

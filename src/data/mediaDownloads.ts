@@ -1,18 +1,34 @@
 import { useSyncExternalStore } from "react";
 import { Directory, File, Paths, type DownloadOptions } from "expo-file-system";
-import { fetchMediaJson, isMediaJson, mediaJsonUrl, type MediaJson } from "@/data/media";
+import {
+  fetchMediaJson,
+  fileExtension,
+  isMediaJson,
+  mediaJsonUrl,
+  type MediaItem,
+  type MediaJson,
+} from "@/data/media";
 
 // Downloaded media lives in <documents>/media, one set of files per mediaId, shared by all accounts:
 //   media-<mediaId><ext>     the media file
 //   media-<mediaId>.json     its transcript (required: a download only finishes when it's saved)
 //   media-<mediaId>-thumb    its thumbnail (best effort; no extension, decoders read the format from the bytes)
+//   media-<mediaId>.meta.json  which version is on the phone (see DownloadRecord)
 // State is kept at module level so a download keeps running when its card or screen unmounts,
 // and cards that show the same mediaId stay in sync.
 
 export type DownloadState =
   | { status: "none" }
   | { status: "downloading"; progress: number | null } // 0–100; null when the size is unknown
-  | { status: "downloaded"; hasThumbnail: boolean; hasTranscript: boolean };
+  | {
+      status: "downloaded";
+      hasThumbnail: boolean;
+      hasTranscript: boolean;
+      // True while a newer version downloads in the background. The old copy stays playable.
+      updating: boolean;
+      // The saved copy's updatedAtOfMedia (0 if unknown). Changes when the files are replaced.
+      version: number;
+    };
 
 // What's needed to download an item.
 export type DownloadSource = {
@@ -20,6 +36,16 @@ export type DownloadSource = {
   fileUrl: string;
   fileJsonId: number;
   thumbnailUrl?: string;
+  updatedAtOfMedia?: number; // ms since epoch
+};
+
+// Which version of an item is on the phone, saved next to its files.
+type DownloadRecord = {
+  fileUrl: string;
+  fileJsonId: number;
+  thumbnailUrl: string | null;
+  updatedAtOfMedia: number; // ms since epoch; 0 if the server didn't send it
+  downloadedAt: number; // ms since epoch
 };
 
 const NONE: DownloadState = { status: "none" };
@@ -28,20 +54,20 @@ const states = new Map<number, DownloadState>();
 const controllers = new Map<number, AbortController>();
 const extrasInFlight = new Set<number>();
 const listeners = new Set<() => void>();
+// Records read from disk. null means "checked, there's none".
+const records = new Map<number, DownloadRecord | null>();
+// How many open players use each item. Its files aren't replaced while it's in use.
+const inUse = new Map<number, number>();
+// Items waiting for an update, run one at a time.
+const updateQueue = new Map<number, DownloadSource>();
+let updateQueueRunning = false;
 
 function mediaDirectory() {
   return new Directory(Paths.document, "media");
 }
 
-// Extension from the end of the URL path, e.g. ".mp3". Empty if there isn't one.
-function extensionOf(fileUrl: string) {
-  const path = fileUrl.split(/[?#]/)[0];
-  const match = /\.([a-z0-9]{1,5})$/i.exec(path);
-  return match ? `.${match[1].toLowerCase()}` : "";
-}
-
 function mediaFile(mediaId: number, fileUrl: string) {
-  return new File(mediaDirectory(), `media-${mediaId}${extensionOf(fileUrl)}`);
+  return new File(mediaDirectory(), `media-${mediaId}${fileExtension(fileUrl)}`);
 }
 
 function transcriptFile(mediaId: number) {
@@ -50,6 +76,74 @@ function transcriptFile(mediaId: number) {
 
 function thumbnailFile(mediaId: number) {
   return new File(mediaDirectory(), `media-${mediaId}-thumb`);
+}
+
+function recordFile(mediaId: number) {
+  return new File(mediaDirectory(), `media-${mediaId}.meta.json`);
+}
+
+function isDownloadRecord(value: unknown): value is DownloadRecord {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return (
+    typeof v.fileUrl === "string" &&
+    typeof v.fileJsonId === "number" &&
+    typeof v.updatedAtOfMedia === "number"
+  );
+}
+
+function readRecord(mediaId: number): DownloadRecord | null {
+  if (records.has(mediaId)) return records.get(mediaId) ?? null;
+  let record: DownloadRecord | null = null;
+  try {
+    const file = recordFile(mediaId);
+    if (fileExists(file)) {
+      const data: unknown = JSON.parse(file.textSync());
+      if (isDownloadRecord(data)) record = data;
+    }
+  } catch {
+    // Missing or broken: treated as an item downloaded before records existed.
+  }
+  records.set(mediaId, record);
+  return record;
+}
+
+function recordFor(source: DownloadSource): DownloadRecord {
+  return {
+    fileUrl: source.fileUrl,
+    fileJsonId: source.fileJsonId,
+    thumbnailUrl: source.thumbnailUrl || null,
+    updatedAtOfMedia: source.updatedAtOfMedia ?? 0,
+    downloadedAt: Date.now(),
+  };
+}
+
+function writeRecord(mediaId: number, record: DownloadRecord) {
+  records.set(mediaId, record);
+  try {
+    mediaDirectory().create({ idempotent: true });
+    const file = recordFile(mediaId);
+    if (!fileExists(file)) file.create();
+    file.write(JSON.stringify(record));
+  } catch (err) {
+    console.warn("Could not save the download record", err);
+  }
+}
+
+// The media file that's actually on the phone. Uses the saved record's URL, so a changed
+// extension on the server still finds (and later replaces) the old file.
+function savedMediaFile(mediaId: number, fileUrl: string) {
+  return mediaFile(mediaId, readRecord(mediaId)?.fileUrl ?? fileUrl);
+}
+
+// Whether the server has a newer version than the saved copy.
+function isOutdated(record: DownloadRecord, source: DownloadSource) {
+  return (
+    (source.updatedAtOfMedia ?? 0) > record.updatedAtOfMedia ||
+    record.fileUrl !== source.fileUrl ||
+    record.fileJsonId !== source.fileJsonId ||
+    record.thumbnailUrl !== (source.thumbnailUrl || null)
+  );
 }
 
 function fileExists(file: File) {
@@ -76,6 +170,17 @@ function deleteQuietly(file: File) {
 function setState(mediaId: number, state: DownloadState) {
   states.set(mediaId, state);
   listeners.forEach((listener) => listener());
+}
+
+// A "downloaded" state read from the disk and the record.
+function downloadedState(mediaId: number, updating = false): DownloadState {
+  return {
+    status: "downloaded",
+    hasThumbnail: fileExists(thumbnailFile(mediaId)),
+    hasTranscript: fileExists(transcriptFile(mediaId)),
+    updating,
+    version: readRecord(mediaId)?.updatedAtOfMedia ?? 0,
+  };
 }
 
 // Downloads to a temporary file in the cache, then moves it into place, so a half-finished
@@ -110,8 +215,12 @@ async function readTranscript(file: File): Promise<MediaJson | null> {
 }
 
 // Saves the transcript and checks that it's a real transcript, not an error page.
-async function downloadTranscript(mediaId: number, fileJsonId: number, signal?: AbortSignal) {
-  const destination = transcriptFile(mediaId);
+async function downloadTranscript(
+  mediaId: number,
+  fileJsonId: number,
+  signal?: AbortSignal,
+  destination = transcriptFile(mediaId),
+) {
   try {
     await downloadTo(mediaJsonUrl(fileJsonId), `media-${mediaId}.json.part`, destination, {
       signal,
@@ -138,13 +247,7 @@ export function subscribeDownloads(listener: () => void) {
 export function getDownloadState(mediaId: number, fileUrl: string): DownloadState {
   let state = states.get(mediaId);
   if (!state) {
-    state = fileExists(mediaFile(mediaId, fileUrl))
-      ? {
-          status: "downloaded",
-          hasThumbnail: fileExists(thumbnailFile(mediaId)),
-          hasTranscript: fileExists(transcriptFile(mediaId)),
-        }
-      : NONE;
+    state = fileExists(savedMediaFile(mediaId, fileUrl)) ? downloadedState(mediaId) : NONE;
     states.set(mediaId, state);
   }
   return state;
@@ -186,11 +289,8 @@ export async function startDownload(source: DownloadSource): Promise<void> {
     controllers.delete(mediaId);
   }
 
-  setState(mediaId, {
-    status: "downloaded",
-    hasThumbnail: fileExists(thumbnailFile(mediaId)),
-    hasTranscript: true,
-  });
+  writeRecord(mediaId, recordFor(source));
+  setState(mediaId, downloadedState(mediaId));
   void ensureExtras(source);
 }
 
@@ -232,7 +332,7 @@ export async function ensureExtras(source: DownloadSource): Promise<void> {
     if (current?.status === "downloaded") {
       if (gotTranscript || gotThumbnail) {
         setState(mediaId, {
-          status: "downloaded",
+          ...current,
           hasThumbnail: current.hasThumbnail || gotThumbnail,
           hasTranscript: current.hasTranscript || gotTranscript,
         });
@@ -252,10 +352,132 @@ export function cancelDownload(mediaId: number) {
 }
 
 export function deleteDownload(mediaId: number, fileUrl: string) {
+  // Stop a background update first, so it doesn't put files back.
+  updateQueue.delete(mediaId);
+  controllers.get(mediaId)?.abort();
+  deleteIfExists(savedMediaFile(mediaId, fileUrl));
   deleteIfExists(mediaFile(mediaId, fileUrl));
   deleteIfExists(transcriptFile(mediaId));
   deleteIfExists(thumbnailFile(mediaId));
+  deleteIfExists(recordFile(mediaId));
+  records.set(mediaId, null);
   setState(mediaId, NONE);
+}
+
+// The player calls these while it's open, so an update never replaces a file being played.
+// Returns a function that releases it.
+export function markInUse(mediaId: number): () => void {
+  inUse.set(mediaId, (inUse.get(mediaId) ?? 0) + 1);
+  return () => {
+    const count = (inUse.get(mediaId) ?? 1) - 1;
+    if (count > 0) inUse.set(mediaId, count);
+    else inUse.delete(mediaId);
+  };
+}
+
+// Compares downloaded items with the latest favorites and updates the outdated ones in the
+// background. Called after every successful favorites fetch.
+export function syncDownloads(items: MediaItem[]): void {
+  for (const item of items) {
+    if (!item.fileUrl) continue;
+    const source: DownloadSource = {
+      mediaId: item.mediaId,
+      fileUrl: item.fileUrl,
+      fileJsonId: item.fileJsonId,
+      thumbnailUrl: item.fileThumbnailUrl || undefined,
+      updatedAtOfMedia: item.updatedAtOfMedia,
+    };
+    let state: DownloadState;
+    try {
+      state = getDownloadState(source.mediaId, source.fileUrl);
+    } catch {
+      continue;
+    }
+    if (state.status !== "downloaded" || state.updating) continue;
+
+    const record = readRecord(source.mediaId);
+    if (!record) {
+      // Downloaded before records existed: assume it's current, instead of downloading
+      // everything again after the app update.
+      writeRecord(source.mediaId, recordFor(source));
+      setState(source.mediaId, { ...state, version: source.updatedAtOfMedia ?? 0 });
+      continue;
+    }
+    if (isOutdated(record, source)) updateQueue.set(source.mediaId, source);
+  }
+  void runUpdateQueue();
+}
+
+async function runUpdateQueue() {
+  if (updateQueueRunning) return;
+  updateQueueRunning = true;
+  try {
+    for (;;) {
+      const next = updateQueue.entries().next();
+      if (next.done) break;
+      const [mediaId, source] = next.value;
+      updateQueue.delete(mediaId);
+      // An open player keeps the old copy; the next sync tries again.
+      if (inUse.has(mediaId)) continue;
+      await updateDownload(source);
+    }
+  } finally {
+    updateQueueRunning = false;
+  }
+}
+
+// Downloads the new version next to the old one, then swaps it in. On any failure the old
+// copy and record stay, and the next sync tries again. Never rejects.
+async function updateDownload(source: DownloadSource): Promise<void> {
+  const { mediaId, fileUrl, fileJsonId, thumbnailUrl } = source;
+  const state = states.get(mediaId);
+  const record = readRecord(mediaId);
+  if (state?.status !== "downloaded" || state.updating || !record) return;
+
+  const controller = new AbortController();
+  controllers.set(mediaId, controller);
+  setState(mediaId, { ...state, updating: true });
+
+  const stagedTranscript = new File(Paths.cache, `media-${mediaId}.json.next`);
+  const stagedMedia = new File(mediaDirectory(), `media-${mediaId}.next${fileExtension(fileUrl)}`);
+  try {
+    await downloadTranscript(mediaId, fileJsonId, controller.signal, stagedTranscript);
+    await downloadTo(fileUrl, `media-${mediaId}.part`, stagedMedia, { signal: controller.signal });
+    if (controller.signal.aborted) throw new Error("Update cancelled");
+    // Removed, or opened in the player, while downloading: keep things as they are.
+    if (states.get(mediaId)?.status !== "downloaded" || inUse.has(mediaId)) {
+      throw new Error("Update skipped");
+    }
+
+    // Swap: the new media and transcript replace the old ones.
+    const oldMedia = mediaFile(mediaId, record.fileUrl);
+    const newMedia = mediaFile(mediaId, fileUrl);
+    deleteIfExists(oldMedia);
+    deleteIfExists(newMedia);
+    await stagedMedia.move(newMedia);
+    deleteIfExists(transcriptFile(mediaId));
+    await stagedTranscript.move(transcriptFile(mediaId));
+
+    // The thumbnail is best effort, as for new downloads.
+    deleteQuietly(thumbnailFile(mediaId));
+    if (thumbnailUrl) {
+      try {
+        await downloadTo(thumbnailUrl, `media-${mediaId}-thumb.part`, thumbnailFile(mediaId));
+      } catch {
+        // ensureExtras tries again later.
+      }
+    }
+
+    writeRecord(mediaId, recordFor(source));
+    setState(mediaId, downloadedState(mediaId));
+  } catch {
+    deleteQuietly(stagedTranscript);
+    deleteQuietly(stagedMedia);
+    const current = states.get(mediaId);
+    if (current?.status === "downloaded") setState(mediaId, { ...current, updating: false });
+  } finally {
+    controllers.delete(mediaId);
+  }
 }
 
 // The local file:// URI of a downloaded media file, or null if it isn't on the phone.
@@ -264,7 +486,7 @@ export function deleteDownload(mediaId: number, fileUrl: string) {
 export function getLocalMediaUri(mediaId: number, fileUrl: string): string | null {
   let file: File;
   try {
-    file = mediaFile(mediaId, fileUrl);
+    file = savedMediaFile(mediaId, fileUrl);
   } catch {
     return null;
   }
@@ -302,7 +524,7 @@ export function getLocalThumbnailUri(mediaId: number): string | null {
 // Uses the cached download state, so it doesn't check the disk on every render.
 export function useLocalMediaUri(mediaId: number, fileUrl: string): string | null {
   const state = useMediaDownload(mediaId, fileUrl);
-  return state.status === "downloaded" ? mediaFile(mediaId, fileUrl).uri : null;
+  return state.status === "downloaded" ? savedMediaFile(mediaId, fileUrl).uri : null;
 }
 
 export function useMediaDownload(mediaId: number, fileUrl: string): DownloadState;
