@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import {
   ActivityIndicator,
   AppState,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -10,19 +11,21 @@ import {
 } from "react-native";
 import { useAuth } from "@clerk/expo";
 import { globalStyles } from "@/styles/global";
+import Icon from "@/components/Icon";
 import MediaCard from "@/components/MediaCard";
+import StatusBanner, { type LoadProblem } from "@/components/StatusBanner";
+import { isOfflineError } from "@/data/networkErrors";
 
 import { fetchFavorites, type MediaItem } from "@/data/media";
 import { loadCachedFavorites, saveCachedFavorites } from "@/data/favoritesCache";
 import { syncDownloads } from "@/data/mediaDownloads";
 
-// `items` may be the saved copy. `error` is set when the latest request failed;
-// if a saved copy exists, it is shown with an offline notice instead of the error.
+// `items` may be the saved copy. `problem` says why the latest request failed (offline or
+// another failure); a saved copy is then shown with a StatusBanner, and with no saved copy
+// the screen explains the problem with a Try again button.
 type FavoritesResult =
-  | { userId: string; items: MediaItem[]; error: string | null }
-  | { userId: string; items: null; error: string };
-
-const OFFLINE_NOTICE = "Can't reach the server. Showing your saved favorites.";
+  | { userId: string; items: MediaItem[]; problem: LoadProblem | null }
+  | { userId: string; items: null; problem: LoadProblem };
 // Coming back to the app refreshes the list at most this often.
 const FOREGROUND_REFRESH_MS = 30_000;
 
@@ -47,15 +50,16 @@ export default function HomeScreen() {
       const items = await fetchFavorites(uid);
       if (currentUserId.current !== uid) return;
       saveCachedFavorites(uid, items);
-      setResult({ userId: uid, items, error: null });
+      setResult({ userId: uid, items, problem: null });
       syncDownloads(items);
     } catch (err: unknown) {
       if (currentUserId.current !== uid) return;
-      const error = err instanceof Error ? err.message : "Failed to load favorites";
+      console.warn("Couldn't load favorites", err);
+      const problem: LoadProblem = isOfflineError(err) ? "offline" : "failed";
       setResult((previous) =>
         previous?.userId === uid && previous.items
-          ? { userId: uid, items: previous.items, error }
-          : { userId: uid, items: null, error },
+          ? { userId: uid, items: previous.items, problem }
+          : { userId: uid, items: null, problem },
       );
     }
   }, []);
@@ -68,7 +72,7 @@ export default function HomeScreen() {
       // Show the saved list right away, then replace it with fresh data.
       const cached = await loadCachedFavorites(userId);
       if (cancelled) return;
-      if (cached) setResult({ userId, items: cached, error: null });
+      if (cached) setResult({ userId, items: cached, problem: null });
       await fetchFresh(userId);
     })();
 
@@ -109,15 +113,20 @@ export default function HomeScreen() {
     return <Centered><ActivityIndicator /></Centered>;
   }
   if (result.items === null) {
-    return <Centered><Text>{result.error}</Text></Centered>;
+    return (
+      <LoadFailed problem={result.problem} refreshing={refreshing} onRetry={onRefresh} />
+    );
   }
-  const { items } = result;
-  const isOffline = result.error !== null;
+  const { items, problem } = result;
   if (items.length === 0) {
     return (
       <Centered>
         <Text>You have no favorites yet.</Text>
-        {isOffline && <Text style={styles.offlineText}>{OFFLINE_NOTICE}</Text>}
+        {problem && (
+          <View style={styles.emptyBanner}>
+            <StatusBanner kind={problem} />
+          </View>
+        )}
       </Centered>
     );
   }
@@ -128,7 +137,7 @@ export default function HomeScreen() {
       contentContainerStyle={styles.contentContainer}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
-      {isOffline && <Text style={styles.offlineText}>{OFFLINE_NOTICE}</Text>}
+      {problem && <StatusBanner kind={problem} />}
       {items.map((item) => (
         <MediaCard
           key={item.id}
@@ -149,17 +158,88 @@ function Centered({ children }: { children: ReactNode }) {
   return <View style={[globalStyles.container, styles.centered]}>{children}</View>;
 }
 
+// Shown when the list couldn't load and there's no saved copy to fall back on.
+function LoadFailed({
+  problem,
+  refreshing,
+  onRetry,
+}: {
+  problem: LoadProblem;
+  refreshing: boolean;
+  onRetry: () => void;
+}) {
+  const offline = problem === "offline";
+  return (
+    <Centered>
+      <Icon name={offline ? "wifiOff" : "info"} size={40} color="#8E8E93" />
+      <Text style={styles.failedTitle} accessibilityRole="header">
+        {offline ? "You're offline" : "Couldn't load your favorites"}
+      </Text>
+      <Text style={styles.failedMessage}>
+        {offline
+          ? "Connect to the internet to load your favorites."
+          : "Please try again in a moment."}
+      </Text>
+      <Pressable
+        onPress={onRetry}
+        disabled={refreshing}
+        accessibilityRole="button"
+        accessibilityState={{ busy: refreshing }}
+        style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}
+      >
+        {refreshing ? (
+          <ActivityIndicator color="#FFFFFF" />
+        ) : (
+          <Text style={styles.retryText}>Try again</Text>
+        )}
+      </Pressable>
+    </Centered>
+  );
+}
+
 const styles = StyleSheet.create({
   contentContainer: {
     gap: 32,
     paddingBottom: 32,
   },
-  offlineText: {
-    fontSize: 12,
-    color: "#666666",
-  },
   centered: {
     alignItems: "center",
     justifyContent: "center",
+  },
+  emptyBanner: {
+    alignSelf: "stretch",
+    marginTop: 16,
+  },
+  failedTitle: {
+    marginTop: 12,
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#000000",
+    textAlign: "center",
+  },
+  failedMessage: {
+    marginTop: 6,
+    fontSize: 15,
+    lineHeight: 20,
+    color: "#6C6C70",
+    textAlign: "center",
+  },
+  retryButton: {
+    marginTop: 20,
+    minWidth: 140,
+    height: 44,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    backgroundColor: "#0A84FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  retryText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
+  pressed: {
+    opacity: 0.7,
   },
 });

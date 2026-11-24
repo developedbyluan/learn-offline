@@ -43,7 +43,7 @@ if (ok) deleteDownload(mediaId, fileUrl);
 - **"You're offline. Connect to the internet to download this lesson."** This shows when the error text looks like a network failure. It must match `unable to resolve host`, `network`, `offline`, `internet`, `timeout`/`timed out`, `failed to connect` or `connection`.
 - **"Couldn't download this lesson. Please try again."** This shows for any other failure, for example a broken URL or a bad transcript.
 
-The raw error goes to `console.warn`, for debugging. The app has no network-status module (`expo-network` would need a native build), so the error text is the only signal. If an offline error ever shows the generic message, add its wording to `OFFLINE_PATTERN` in `DownloadButton.tsx`.
+The raw error goes to `console.warn`, for debugging. The app has no network-status module (`expo-network` would need a native build), so the error text is the only signal. The check is `isOfflineError` in `src/data/networkErrors.ts`, which the favorites screen also uses for its offline banner (see [remote-favorites.md](remote-favorites.md)). If an offline error ever shows the generic message, add its wording to `OFFLINE_PATTERN` there.
 
 ## Files
 

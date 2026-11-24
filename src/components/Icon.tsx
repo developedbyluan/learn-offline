@@ -17,6 +17,7 @@ const ICONS = {
   list: { ios: "list.bullet", material: 0xe241, filled: false }, // format_list_bulleted
   textSize: { ios: "textformat.size", material: 0xe245, filled: false }, // format_size
   info: { ios: "info.circle", material: 0xe88e, filled: false }, // info
+  wifiOff: { ios: "wifi.slash", material: 0xe1da, filled: false }, // wifi_off
 } as const;
 
 export type IconName = keyof typeof ICONS;

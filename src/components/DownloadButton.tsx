@@ -2,6 +2,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text } from "react-native";
 import DownloadIcon from "@/components/DownloadIcon";
 import { confirm } from "@/components/feedback/ConfirmDialog";
 import { showToast } from "@/components/feedback/Toast";
+import { isOfflineError } from "@/data/networkErrors";
 import {
   cancelDownload,
   deleteDownload,
@@ -101,15 +102,9 @@ export default function DownloadButton({
   );
 }
 
-// Network failures look like these in the error text (there's no network-status module,
-// which would need a native build).
-const OFFLINE_PATTERN =
-  /unable to resolve host|network|offline|internet|timed? ?out|failed to connect|connection/i;
-
 // A friendly message instead of the raw system error.
 function downloadErrorMessage(err: unknown) {
-  const text = err instanceof Error ? err.message : String(err);
-  return OFFLINE_PATTERN.test(text)
+  return isOfflineError(err)
     ? "You're offline. Connect to the internet to download this lesson."
     : "Couldn't download this lesson. Please try again.";
 }
