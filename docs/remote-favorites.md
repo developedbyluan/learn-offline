@@ -141,3 +141,5 @@ This was tested on an Android phone with a preview build: the app opened with no
 - Signing out does not delete the saved favorites file. Other accounts on the phone can't see it, because each account has its own file.
 - There is no pull-to-refresh or retry. Reload the app to fetch again.
 - Audio and video still stream from their URLs, so they need internet to play. Media can now be downloaded to the phone (see [media-downloads.md](media-downloads.md)), but nothing plays the downloaded files yet.
+
+> **Update:** downloaded items now update themselves when `updatedAtOfMedia` changes, and the list refreshes on pull-to-refresh and when the app returns. See [download-updates.md](download-updates.md).

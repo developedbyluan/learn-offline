@@ -1,9 +1,10 @@
+import { useEffect } from "react";
 import { useLocalSearchParams } from "expo-router";
 import AudioPlayerScreen from "@/components/player/AudioPlayerScreen";
 import VideoPlayerScreen from "@/components/player/VideoPlayerScreen";
 import { PlayerMessage } from "@/components/player/PlayerLayout";
 import { mediaKind } from "@/data/media";
-import { getLocalThumbnailUri, useLocalMediaUri } from "@/data/mediaDownloads";
+import { getLocalThumbnailUri, markInUse, useLocalMediaUri } from "@/data/mediaDownloads";
 import { useTranscript } from "@/hooks/useTranscript";
 
 // Opened from a downloaded audio or video card. Plays the local file and reads the saved
@@ -27,6 +28,12 @@ export default function PlayerScreen() {
   const localUri = useLocalMediaUri(mediaId, fileUrl);
   const transcript = useTranscript(mediaId, fileJsonId);
   const kind = fileUrl ? mediaKind(fileUrl) : null;
+
+  // While the player is open, background updates leave this lesson's files alone.
+  useEffect(() => {
+    if (!Number.isFinite(mediaId)) return;
+    return markInUse(mediaId);
+  }, [mediaId]);
 
   if (!Number.isFinite(mediaId) || !fileUrl || kind === null) {
     return <PlayerMessage text="Couldn't open this lesson." />;

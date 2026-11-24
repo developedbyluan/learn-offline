@@ -19,6 +19,7 @@ type MediaCardProps = {
   mediaSlug?: string;
   fileUrl?: string;
   fileJsonId?: number;
+  updatedAtOfMedia?: number;
 };
 
 export default function MediaCard({
@@ -29,6 +30,7 @@ export default function MediaCard({
   mediaSlug,
   fileUrl,
   fileJsonId,
+  updatedAtOfMedia,
 }: MediaCardProps) {
   const [failedUris, setFailedUris] = useState<string[]>([]);
   const download = useMediaDownload(mediaId, fileUrl);
@@ -51,9 +53,9 @@ export default function MediaCard({
     ((!download.hasThumbnail && !!thumbnail) || !download.hasTranscript);
   useEffect(() => {
     if (needsExtras && mediaId !== undefined && fileUrl && fileJsonId !== undefined) {
-      void ensureExtras({ mediaId, fileUrl, fileJsonId, thumbnailUrl: thumbnail });
+      void ensureExtras({ mediaId, fileUrl, fileJsonId, thumbnailUrl: thumbnail, updatedAtOfMedia });
     }
-  }, [needsExtras, mediaId, fileUrl, fileJsonId, thumbnail]);
+  }, [needsExtras, mediaId, fileUrl, fileJsonId, thumbnail, updatedAtOfMedia]);
 
   // Downloaded audio and video open the player.
   const canOpenPlayer =
@@ -89,7 +91,15 @@ export default function MediaCard({
     >
       <View style={[{ width: "100%", aspectRatio: 16 / 9 }, contentStyle]}>
         <Image
-          source={imageUri ? { uri: imageUri } : fallbackThumbnail}
+          source={
+            imageUri === localThumbnail && imageUri && download?.status === "downloaded"
+              ? // An update replaces the file at the same path, so the cache key carries the
+                // version; otherwise the old image would stay in expo-image's memory cache.
+                { uri: imageUri, cacheKey: `${imageUri}#${download.version}` }
+              : imageUri
+                ? { uri: imageUri }
+                : fallbackThumbnail
+          }
           // Local files don't need the disk cache; remote thumbnails do, for offline use.
           cachePolicy={imageUri && imageUri === localThumbnail ? "memory" : "disk"}
           onError={() => {
@@ -110,6 +120,7 @@ export default function MediaCard({
             fileUrl={fileUrl}
             fileJsonId={fileJsonId}
             thumbnailUrl={thumbnail}
+            updatedAtOfMedia={updatedAtOfMedia}
             name={name}
           />
         ) : null}

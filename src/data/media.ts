@@ -14,6 +14,9 @@ export type MediaItem = {
   fileOrder: number;
   fileUrl: string;
   fileJsonId: number;
+  // When the media, thumbnail or transcript last changed, in ms since epoch.
+  // Optional: favorites saved by an older app version don't have it.
+  updatedAtOfMedia?: number;
 };
 
 const API_BASE_URL = "https://flucom-api-bun.developedbyluan.workers.dev";

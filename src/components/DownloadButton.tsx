@@ -12,6 +12,7 @@ type DownloadButtonProps = {
   fileUrl: string;
   fileJsonId: number;
   thumbnailUrl?: string;
+  updatedAtOfMedia?: number;
   name: string;
 };
 
@@ -20,14 +21,22 @@ export default function DownloadButton({
   fileUrl,
   fileJsonId,
   thumbnailUrl,
+  updatedAtOfMedia,
   name,
 }: DownloadButtonProps) {
   const state = useMediaDownload(mediaId, fileUrl);
+  // A newer version is downloading in the background; the old copy still plays.
+  const updating = state.status === "downloaded" && state.updating;
 
   function handlePress() {
+    if (updating) {
+      // Keeps the old copy; the next refresh tries again.
+      cancelDownload(mediaId);
+      return;
+    }
     switch (state.status) {
       case "none":
-        startDownload({ mediaId, fileUrl, fileJsonId, thumbnailUrl }).catch((err: unknown) => {
+        startDownload({ mediaId, fileUrl, fileJsonId, thumbnailUrl, updatedAtOfMedia }).catch((err: unknown) => {
           const message = err instanceof Error ? err.message : "Something went wrong.";
           Alert.alert("Download failed", message);
         });
@@ -55,8 +64,9 @@ export default function DownloadButton({
     }
   }
 
-  const label =
-    state.status === "downloading"
+  const label = updating
+    ? `Updating ${name}. Tap to cancel`
+    : state.status === "downloading"
       ? `Cancel download of ${name}`
       : state.status === "downloaded"
         ? `Remove download of ${name}`
@@ -70,7 +80,9 @@ export default function DownloadButton({
       hitSlop={8}
       style={({ pressed }) => [styles.button, pressed && styles.pressed]}
     >
-      {state.status === "downloading" ? (
+      {updating ? (
+        <ActivityIndicator size="small" color="#007AFF" />
+      ) : state.status === "downloading" ? (
         state.progress === null ? (
           <ActivityIndicator color="#000000" />
         ) : (

@@ -221,3 +221,5 @@ This change is JavaScript only. `expo-file-system` is already part of the develo
 - **The transcript check is light.** It only checks that `json` is an array, not every field of every line.
 - **Thumbnails of items that aren't downloaded can still disappear offline.** They come from `expo-image`'s disk cache, which the system or the user can clear.
 - **Plain files only.** `fileUrl` must point to an actual file. A streaming playlist URL (such as HLS `.m3u8`) would save only the playlist, not the media.
+
+> **Update:** downloaded items now update themselves when `updatedAtOfMedia` changes, and the list refreshes on pull-to-refresh and when the app returns. See [download-updates.md](download-updates.md).
