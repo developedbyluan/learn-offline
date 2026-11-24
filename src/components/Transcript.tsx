@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useRef } from "react";
-import { Pressable, ScrollView, StyleSheet, Text } from "react-native";
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { TranscriptLine } from "@/data/media";
 
 type TranscriptProps = {
@@ -24,6 +24,15 @@ export function activeLineIndex(lines: TranscriptLine[], currentTime: number) {
     else break;
   }
   return index;
+}
+
+// An answer line is readable only while it's playing (start <= time < end), so the
+// learner can try to answer first. Lines with bad timing (end <= start) stay hidden.
+export function isAnswerHidden(line: TranscriptLine, currentTime: number) {
+  if (line.speaker !== "answer") return false;
+  const playing =
+    line.end > line.start && currentTime >= line.start && currentTime < line.end;
+  return !playing;
 }
 
 // A speaker label is any text ending in a colon, e.g. "Narrator:".
@@ -74,6 +83,7 @@ export default function Transcript({
           index={index}
           line={line}
           isActive={index === active}
+          hidden={isAnswerHidden(line, currentTime)}
           onSeek={onSeek}
           onLineLayout={handleLineLayout}
           fontSize={fontSize}
@@ -88,6 +98,7 @@ type LineProps = {
   index: number;
   line: TranscriptLine;
   isActive: boolean;
+  hidden: boolean; // a blurred answer line
   onSeek: (seconds: number) => void;
   onLineLayout: (index: number, y: number) => void;
   fontSize: number;
@@ -100,6 +111,7 @@ const Line = memo(function Line({
   index,
   line,
   isActive,
+  hidden,
   onSeek,
   onLineLayout,
   fontSize,
@@ -113,16 +125,60 @@ const Line = memo(function Line({
       onPress={() => onSeek(line.start)}
       onLayout={(event) => onLineLayout(index, event.nativeEvent.layout.y)}
       accessibilityRole="button"
+      accessibilityLabel={hidden ? "Hidden answer" : undefined}
       accessibilityHint="Plays from this line"
       style={({ pressed }) => [styles.line, pressed && styles.pressed]}
     >
       {label ? <Text style={styles.speaker}>{label}</Text> : null}
-      <Text style={[styles.text, { fontSize, lineHeight }, isActive && styles.textActive]}>
-        {text}
-      </Text>
+      {hidden ? (
+        <HiddenAnswer text={text} fontSize={fontSize} lineHeight={lineHeight} />
+      ) : (
+        <Text style={[styles.text, { fontSize, lineHeight }, isActive && styles.textActive]}>
+          {text}
+        </Text>
+      )}
     </Pressable>
   );
 });
+
+// Android 12+ (API 31) has a real Gaussian blur filter (RenderEffect). It does nothing
+// on iOS or older Android, where the answer would be readable, so a soft text shadow
+// stands in for it there.
+const CAN_FILTER_BLUR = Platform.OS === "android" && Number(Platform.Version) >= 31;
+
+// A hidden answer: the normal text, blurred so it can't be read. It's the same Text with
+// the same size, so the line doesn't move when revealed. The radii scale with the size.
+function HiddenAnswer({
+  text,
+  fontSize,
+  lineHeight,
+}: {
+  text: string;
+  fontSize: number;
+  lineHeight: number;
+}) {
+  return (
+    <View
+      style={[
+        styles.blurBox,
+        CAN_FILTER_BLUR && { filter: [{ blur: Math.round(fontSize * 0.4) }] },
+      ]}
+    >
+      <Text
+        style={[
+          styles.text,
+          { fontSize, lineHeight },
+          !CAN_FILTER_BLUR && [
+            styles.shadowBlur,
+            { textShadowRadius: Math.round(fontSize * 0.6) },
+          ],
+        ]}
+      >
+        {text}
+      </Text>
+    </View>
+  );
+}
 
 const styles = StyleSheet.create({
   content: {
@@ -146,5 +202,18 @@ const styles = StyleSheet.create({
   },
   textActive: {
     color: "#000000",
+  },
+  // Padding gives the blur room to spread instead of being cut off at the edges; the
+  // negative margin cancels it so the line keeps its size and position.
+  blurBox: {
+    padding: 12,
+    margin: -12,
+  },
+  // Transparent glyphs with a soft shadow. The shadow color must not be opaque: on
+  // Android, Paint.setShadowLayer then uses the shadow's own alpha, not the text's (zero).
+  shadowBlur: {
+    color: "transparent",
+    textShadowColor: "rgba(142, 142, 147, 0.9)",
+    textShadowOffset: { width: 0, height: 0 },
   },
 });

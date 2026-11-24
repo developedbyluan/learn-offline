@@ -22,6 +22,12 @@ From top to bottom:
 - **Highlight:** the line being spoken turns black, and the others stay gray. "Being spoken" means the last line whose `start` has passed, so the highlight stays on the previous line during gaps between lines.
 - **Auto-scroll:** the list scrolls to keep the current line near the top. After you scroll by hand, it waits 4 seconds before following the audio again.
 - **Tap to seek:** tapping a line jumps the audio to that line's `start`.
+- **Hidden answers:** lines whose `speaker` is `"answer"` are blurred, so the learner can try to answer first. A line is readable only while the playback is inside its time range (`start ≤ time < end`). It is hidden again once the playback moves past it, including after a seek back. Tapping a hidden answer jumps there, which reveals it. Screen readers say "Hidden answer" instead of reading it. Lines with bad timing (`end ≤ start`) stay hidden.
+  - **How it looks:** the normal gray text, strongly blurred, so you can see the shape of the words but not read them (`HiddenAnswer` in `Transcript.tsx`). It's the same `Text` at the same size, so revealing doesn't move anything, and auto-scroll stays correct.
+    - **Android 12+ (API 31):** a real Gaussian blur, React Native's `filter: [{ blur }]` (RenderEffect) on a wrapper `View`. The radius is 0.4 × the font size.
+    - **iOS and Android 11 or older:** the blur filter does nothing there, so the answer would be readable. Instead, the text is transparent with a soft gray shadow (radius 0.6 × the font size). The shadow color must not be opaque: on Android, `Paint.setShadowLayer` then uses the shadow's own alpha instead of the text's zero alpha.
+    - The wrapper has `padding: 12` and `margin: -12`, so the blur isn't cut off at the edges and the line keeps its size.
+  - **Earlier attempts:** a weak shadow blur (still readable) and gray word bars (not the wanted look) were replaced by this.
 
 **Other behaviors:**
 - **Favorites:** closes the player and shows the favorites list, the same as the back button. Playback stops, and the position is saved. This button used to be a star, which read like "unfavorite this lesson", so it's now a list icon with a caption.
