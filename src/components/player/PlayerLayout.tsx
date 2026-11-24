@@ -7,6 +7,8 @@ import SeekBar from "@/components/SeekBar";
 import Transcript from "@/components/Transcript";
 import type { TranscriptResult } from "@/hooks/useTranscript";
 import { usePlaybackPosition } from "@/hooks/usePlaybackPosition";
+import { usePlayTimeTracking } from "@/hooks/usePlayTimeTracking";
+import { useAuth } from "@clerk/expo";
 import { useTranscriptTextSize } from "@/data/transcriptTextSize";
 
 const SKIP_SECONDS = 5;
@@ -46,6 +48,9 @@ export default function PlayerLayout({
   const insets = useSafeAreaInsets();
   // Opens where the lesson was left off, and remembers the position for next time.
   usePlaybackPosition({ mediaId, currentTime, duration, isLoaded, playing, onSeek });
+  // Records this visit as a listening session (only time while playing counts).
+  const { userId } = useAuth();
+  usePlayTimeTracking({ mediaId, userId: userId ?? null, playing, currentTime });
   const [mediaHidden, setMediaHidden] = useState(false);
   const [textSize, cycleTextSize] = useTranscriptTextSize();
 
