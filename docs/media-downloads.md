@@ -12,7 +12,7 @@ The download button on each favorite card now downloads the media from `MediaIte
 
 Until a card's media is downloaded, its thumbnail, title and author are dimmed to 40% opacity. The download button stays at full opacity. A card becomes fully visible once its download finishes, and dims again if the download is removed. This way users can tell which media is on the phone at a glance. Cards with no `mediaId` or `fileUrl` can't be downloaded, so they aren't dimmed.
 
-If a download fails (for example, with no internet), the app shows a "Download failed" alert with the error, and the button goes back to the down arrow.
+If a download fails, the app shows a toast and the button goes back to the down arrow. With no internet, the toast says "You're offline. Connect to the internet to download this lesson."; otherwise it says "Couldn't download this lesson. Please try again." See [feedback-ui.md](feedback-ui.md).
 
 Screen readers announce the button as "Download <title>", "Cancel download of <title>" or "Remove download of <title>", depending on the state.
 
@@ -113,7 +113,7 @@ These real media URLs were checked: `.mp4` and `.MP3` files on `media.speakfc.co
 
 ### `src/components/DownloadButton.tsx` (new)
 
-This is the 44×44 button. It reads `useMediaDownload` and does what the table above describes. The confirm dialog and the error alerts use `Alert.alert`.
+This is the 44×44 button. It reads `useMediaDownload` and does what the table above describes. The "Remove download?" question uses the in-app `confirm()` dialog, and errors use `showToast()` (see [feedback-ui.md](feedback-ui.md)).
 
 ### `src/components/DownloadIcon.tsx`
 

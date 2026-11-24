@@ -2,6 +2,8 @@ import { ClerkProvider } from "@clerk/expo";
 import { resourceCache } from "@clerk/expo/resource-cache";
 import { tokenCache } from "@clerk/expo/token-cache";
 import { Stack } from "expo-router";
+import { DialogHost } from "@/components/feedback/ConfirmDialog";
+import { ToastHost } from "@/components/feedback/Toast";
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
 
@@ -25,6 +27,9 @@ export default function RootLayout() {
           options={{ presentation: "modal", animation: "slide_from_bottom" }}
         />
       </Stack>
+      {/* In-app messages, usable from any screen: showToast() and confirm(). */}
+      <ToastHost />
+      <DialogHost />
     </ClerkProvider>
   );
 }

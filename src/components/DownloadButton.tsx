@@ -1,5 +1,7 @@
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text } from "react-native";
 import DownloadIcon from "@/components/DownloadIcon";
+import { confirm } from "@/components/feedback/ConfirmDialog";
+import { showToast } from "@/components/feedback/Toast";
 import {
   cancelDownload,
   deleteDownload,
@@ -37,30 +39,32 @@ export default function DownloadButton({
     switch (state.status) {
       case "none":
         startDownload({ mediaId, fileUrl, fileJsonId, thumbnailUrl, updatedAtOfMedia }).catch((err: unknown) => {
-          const message = err instanceof Error ? err.message : "Something went wrong.";
-          Alert.alert("Download failed", message);
+          console.warn("Download failed", err);
+          showToast(downloadErrorMessage(err));
         });
         break;
       case "downloading":
         cancelDownload(mediaId);
         break;
       case "downloaded":
-        Alert.alert("Remove download?", name, [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Remove",
-            style: "destructive",
-            onPress: () => {
-              try {
-                deleteDownload(mediaId, fileUrl);
-              } catch (err: unknown) {
-                const message = err instanceof Error ? err.message : "Something went wrong.";
-                Alert.alert("Couldn't remove download", message);
-              }
-            },
-          },
-        ]);
+        void confirmRemove();
         break;
+    }
+  }
+
+  async function confirmRemove() {
+    const confirmed = await confirm({
+      title: "Remove download?",
+      message: name,
+      confirmText: "Remove",
+      destructive: true,
+    });
+    if (!confirmed) return;
+    try {
+      deleteDownload(mediaId, fileUrl);
+    } catch (err: unknown) {
+      console.warn("Couldn't remove download", err);
+      showToast("Couldn't remove this download. Please try again.");
     }
   }
 
@@ -95,6 +99,19 @@ export default function DownloadButton({
       )}
     </Pressable>
   );
+}
+
+// Network failures look like these in the error text (there's no network-status module,
+// which would need a native build).
+const OFFLINE_PATTERN =
+  /unable to resolve host|network|offline|internet|timed? ?out|failed to connect|connection/i;
+
+// A friendly message instead of the raw system error.
+function downloadErrorMessage(err: unknown) {
+  const text = err instanceof Error ? err.message : String(err);
+  return OFFLINE_PATTERN.test(text)
+    ? "You're offline. Connect to the internet to download this lesson."
+    : "Couldn't download this lesson. Please try again.";
 }
 
 const styles = StyleSheet.create({

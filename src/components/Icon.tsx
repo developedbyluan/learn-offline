@@ -16,6 +16,7 @@ const ICONS = {
   fullscreen: { ios: "arrow.up.left.and.arrow.down.right", material: 0xe5d0, filled: false }, // fullscreen
   list: { ios: "list.bullet", material: 0xe241, filled: false }, // format_list_bulleted
   textSize: { ios: "textformat.size", material: 0xe245, filled: false }, // format_size
+  info: { ios: "info.circle", material: 0xe88e, filled: false }, // info
 } as const;
 
 export type IconName = keyof typeof ICONS;
