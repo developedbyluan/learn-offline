@@ -168,7 +168,8 @@ export default function PlayerLayout({
           accessibilityLabel="Back to favorites"
           style={({ pressed }) => [styles.menuButton, pressed && styles.pressed]}
         >
-          <Icon name="star" size={22} color={MENU_ICON_COLOR} />
+          <Icon name="list" size={22} color={MENU_ICON_COLOR} />
+          <MenuLabel text="Favorites" />
         </Pressable>
         <Pressable
           onPress={cycleTextSize}
@@ -179,9 +180,25 @@ export default function PlayerLayout({
           style={({ pressed }) => [styles.menuButton, pressed && styles.pressed]}
         >
           <Icon name="textSize" size={22} color={MENU_ICON_COLOR} />
+          <MenuLabel text="Text size" />
         </Pressable>
       </View>
     </View>
+  );
+}
+
+// The small caption under a menu icon. Hidden from screen readers, because the button
+// already has its own label.
+function MenuLabel({ text }: { text: string }) {
+  return (
+    <Text
+      style={styles.menuLabel}
+      maxFontSizeMultiplier={1.3}
+      accessible={false}
+      importantForAccessibility="no"
+    >
+      {text}
+    </Text>
   );
 }
 
@@ -267,10 +284,15 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
   menuButton: {
-    width: 44,
-    height: 36,
+    minWidth: 64,
     alignItems: "center",
     justifyContent: "center",
+    paddingVertical: 4,
+    gap: 2,
+  },
+  menuLabel: {
+    fontSize: 12,
+    color: MENU_ICON_COLOR,
   },
   playButton: {
     width: PLAY_BUTTON_SIZE,

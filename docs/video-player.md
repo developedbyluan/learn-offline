@@ -17,7 +17,7 @@ The layout matches the [audio player](audio-player.md), with the video in place 
 | Seek bar and controls | The same as audio: seek bar, back 5 s, Play/Pause, forward 5 s |
 
 **Other behaviors:**
-- **Menu:** the same star (back to favorites) and **Aa** (transcript text size) row as the [audio player](audio-player.md), under the controls.
+- **Menu:** the same **Favorites** (list icon, back to the favorites list) and **Aa** (transcript text size) row as the [audio player](audio-player.md), under the controls.
 - **Resume:** reopening a lesson jumps to where you left off, paused. See [playback-position.md](playback-position.md).
 - **Fullscreen:** the button opens the platform's own fullscreen player, which has its own controls. The transcript isn't shown there. Back, or the exit button, returns to the player at the same position. On Android, JavaScript is paused while fullscreen, which is fine because nothing on the player screen is visible then.
 - **Background playback:** while the player is open, the sound keeps playing when you press Home, switch apps or lock the screen. A media notification and the lock screen show the title, author and artwork, with playback controls.
