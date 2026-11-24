@@ -16,6 +16,7 @@ From top to bottom:
 | Transcript | Every line's English sentence (`target`, trimmed). Speaker labels ending in a colon, like `Narrator:`, are shown above their line in gray. `question`, `answer` and `""` aren't shown |
 | Seek bar | Gray track with a white thumb. Current time on the left, total length on the right |
 | Controls | Back 5 s, Play/Pause (in a gray circle), Forward 5 s |
+| Menu | A small gray row under the controls: a **star** (back to favorites) and **Aa** (transcript text size) |
 
 **How the transcript behaves:**
 - **Highlight:** the line being spoken turns black, and the others stay gray. "Being spoken" means the last line whose `start` has passed, so the highlight stays on the previous line during gaps between lines.
@@ -23,6 +24,8 @@ From top to bottom:
 - **Tap to seek:** tapping a line jumps the audio to that line's `start`.
 
 **Other behaviors:**
+- **Star:** closes the player and shows the favorites list, the same as the back button. Playback stops, and the position is saved.
+- **Aa:** each tap steps the transcript text through Small (18), Medium (22, the default), Large (26) and Extra large (30), then back to Small. The size is saved on the phone (`transcript-text-size.json`) and used for every lesson. The highlight and auto-scroll keep working at every size.
 - **Resume:** reopening a lesson jumps to where you left off, paused. See [playback-position.md](playback-position.md).
 - **Play at the end:** if playback has reached the end, Play starts again from the beginning.
 - **Seek bar:** drag the thumb, or tap anywhere on the track. The time label follows your finger, and the audio seeks when you lift it. With TalkBack or VoiceOver, swiping up or down moves 5 seconds.
@@ -53,7 +56,8 @@ Downloaded **videos** now open the same screen, with the video in place of the a
 | `src/app/_layout.tsx` | The root now uses a `Stack` instead of a `Slot`, with headers hidden, so `player` can open with `presentation: "modal"`. On Android, a modal is a full-screen page that slides up from the bottom. |
 | `src/components/Transcript.tsx` (new) | The transcript list: highlight, auto-scroll and tap to seek. Each line is memoized, so only lines whose highlight changes re-render as the audio plays. |
 | `src/components/SeekBar.tsx` (new) | The seek bar, built with React Native's touch responder props. No native slider library is needed. Also exports `formatTime` (`75` → `01:15`, `3725` → `1:02:05`). |
-| `src/components/Icon.tsx` (new) | Icons for chevron up/down, play, pause, back 5 and forward 5. Uses SF Symbols on iOS. On Android and web it draws Material Symbols font characters the same way as `DownloadIcon`, to avoid the clipping bug. Play and pause use the filled Material font. |
+| `src/data/transcriptTextSize.ts` (new) | The four text sizes, and `useTranscriptTextSize()`, which returns the current size and a `cycle` function. The choice is saved in `Paths.document/transcript-text-size.json` as `{ "index": 1 }`, read once with `textSync`. A missing or broken value means Medium. |
+| `src/components/Icon.tsx` (new) | Icons for chevron up/down, play, pause, back 5, forward 5, fullscreen, star and text size (`textformat.size` / Material `format_size`). Uses SF Symbols on iOS. On Android and web it draws Material Symbols font characters the same way as `DownloadIcon`, to avoid the clipping bug. Play and pause use the filled Material font. |
 | `src/components/MediaCard.tsx` | The card is now a `Pressable`. It's enabled for downloaded audio and video (`mediaKind`) and opens `/player` with `router.push`. |
 | `src/data/media.ts` | Adds `fileExtension(url)`, moved from `mediaDownloads.ts`, and `isAudioUrl(fileUrl)`. |
 | `app.json` | Adds the `expo-audio` config plugin with `microphonePermission: false`, `recordAudioAndroid: false` and `enableBackgroundPlayback: true`. On Android it adds:<br>• the `MODIFY_AUDIO_SETTINGS`, `FOREGROUND_SERVICE` and `FOREGROUND_SERVICE_MEDIA_PLAYBACK` permissions;<br>• the `AudioControlsService` foreground service (type `mediaPlayback`).<br>On iOS it adds the `audio` background mode. There's no `POST_NOTIFICATIONS` prompt, because Android doesn't require it for media notifications. |

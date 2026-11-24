@@ -14,6 +14,8 @@ const ICONS = {
   back5: { ios: "gobackward.5", material: 0xe05b, filled: false }, // replay_5
   forward5: { ios: "goforward.5", material: 0xe058, filled: false }, // forward_5
   fullscreen: { ios: "arrow.up.left.and.arrow.down.right", material: 0xe5d0, filled: false }, // fullscreen
+  star: { ios: "star", material: 0xe838, filled: false }, // star
+  textSize: { ios: "textformat.size", material: 0xe245, filled: false }, // format_size
 } as const;
 
 export type IconName = keyof typeof ICONS;

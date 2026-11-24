@@ -1,11 +1,13 @@
 import { useCallback, useState, type ReactNode } from "react";
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { router } from "expo-router";
 import Icon from "@/components/Icon";
 import SeekBar from "@/components/SeekBar";
 import Transcript from "@/components/Transcript";
 import type { TranscriptResult } from "@/hooks/useTranscript";
 import { usePlaybackPosition } from "@/hooks/usePlaybackPosition";
+import { useTranscriptTextSize } from "@/data/transcriptTextSize";
 
 const SKIP_SECONDS = 5;
 // How close to the end counts as finished, so Play starts again from the beginning.
@@ -45,6 +47,7 @@ export default function PlayerLayout({
   // Opens where the lesson was left off, and remembers the position for next time.
   usePlaybackPosition({ mediaId, currentTime, duration, isLoaded, playing, onSeek });
   const [mediaHidden, setMediaHidden] = useState(false);
+  const [textSize, cycleTextSize] = useTranscriptTextSize();
 
   const seekTo = useCallback(
     async (seconds: number) => {
@@ -105,7 +108,13 @@ export default function PlayerLayout({
         ) : transcript.lines === null ? (
           <Text style={styles.message}>{transcript.error}</Text>
         ) : (
-          <Transcript lines={transcript.lines} currentTime={currentTime} onSeek={seekTo} />
+          <Transcript
+            lines={transcript.lines}
+            currentTime={currentTime}
+            onSeek={seekTo}
+            fontSize={textSize.fontSize}
+            lineHeight={textSize.lineHeight}
+          />
         )}
       </View>
 
@@ -150,8 +159,37 @@ export default function PlayerLayout({
           <Icon name="forward5" size={36} color="#000000" />
         </Pressable>
       </View>
+
+      <View style={styles.menu}>
+        <Pressable
+          onPress={goToFavorites}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="Back to favorites"
+          style={({ pressed }) => [styles.menuButton, pressed && styles.pressed]}
+        >
+          <Icon name="star" size={22} color={MENU_ICON_COLOR} />
+        </Pressable>
+        <Pressable
+          onPress={cycleTextSize}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel={`Transcript text size: ${textSize.name}`}
+          accessibilityHint="Changes to the next size"
+          style={({ pressed }) => [styles.menuButton, pressed && styles.pressed]}
+        >
+          <Icon name="textSize" size={22} color={MENU_ICON_COLOR} />
+        </Pressable>
+      </View>
     </View>
   );
+}
+
+// Closes the player and shows the favorites list. Opens the list directly if there's
+// no screen to go back to.
+function goToFavorites() {
+  if (router.canGoBack()) router.back();
+  else router.replace("/(tabs)");
 }
 
 // A full-screen message instead of the player, e.g. when the lesson isn't downloaded.
@@ -164,6 +202,8 @@ export function PlayerMessage({ text }: { text: string }) {
 }
 
 const PLAY_BUTTON_SIZE = 76;
+// Gray and smaller than the playback controls, so the menu reads as secondary.
+const MENU_ICON_COLOR = "#8E8E93";
 
 export const playerStyles = StyleSheet.create({
   // The media slot: full width, 16:9, like the card thumbnails.
@@ -218,6 +258,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-evenly",
     paddingTop: 16,
+  },
+  menu: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 48,
+    paddingTop: 12,
+  },
+  menuButton: {
+    width: 44,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
   },
   playButton: {
     width: PLAY_BUTTON_SIZE,

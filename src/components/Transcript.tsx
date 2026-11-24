@@ -6,6 +6,8 @@ type TranscriptProps = {
   lines: TranscriptLine[];
   currentTime: number; // seconds
   onSeek: (seconds: number) => void;
+  fontSize: number;
+  lineHeight: number;
 };
 
 // After the user scrolls by hand, wait this long before following the audio again.
@@ -30,7 +32,13 @@ function speakerLabel(speaker: string) {
   return speaker.endsWith(":") ? speaker : null;
 }
 
-export default function Transcript({ lines, currentTime, onSeek }: TranscriptProps) {
+export default function Transcript({
+  lines,
+  currentTime,
+  onSeek,
+  fontSize,
+  lineHeight,
+}: TranscriptProps) {
   const scrollRef = useRef<ScrollView>(null);
   const lineYs = useRef<number[]>([]);
   const lastManualScroll = useRef(0);
@@ -68,6 +76,8 @@ export default function Transcript({ lines, currentTime, onSeek }: TranscriptPro
           isActive={index === active}
           onSeek={onSeek}
           onLineLayout={handleLineLayout}
+          fontSize={fontSize}
+          lineHeight={lineHeight}
         />
       ))}
     </ScrollView>
@@ -80,11 +90,21 @@ type LineProps = {
   isActive: boolean;
   onSeek: (seconds: number) => void;
   onLineLayout: (index: number, y: number) => void;
+  fontSize: number;
+  lineHeight: number;
 };
 
 // Memoized so only the lines whose highlight changes re-render while the audio plays.
 // The callbacks must be stable (useCallback) for this to work.
-const Line = memo(function Line({ index, line, isActive, onSeek, onLineLayout }: LineProps) {
+const Line = memo(function Line({
+  index,
+  line,
+  isActive,
+  onSeek,
+  onLineLayout,
+  fontSize,
+  lineHeight,
+}: LineProps) {
   const label = speakerLabel(line.speaker);
   const text = line.target.trim();
 
@@ -97,7 +117,9 @@ const Line = memo(function Line({ index, line, isActive, onSeek, onLineLayout }:
       style={({ pressed }) => [styles.line, pressed && styles.pressed]}
     >
       {label ? <Text style={styles.speaker}>{label}</Text> : null}
-      <Text style={[styles.text, isActive && styles.textActive]}>{text}</Text>
+      <Text style={[styles.text, { fontSize, lineHeight }, isActive && styles.textActive]}>
+        {text}
+      </Text>
     </Pressable>
   );
 });
@@ -120,8 +142,6 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   text: {
-    fontSize: 22,
-    lineHeight: 30,
     color: "#A1A1A6",
   },
   textActive: {
