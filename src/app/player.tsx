@@ -6,6 +6,7 @@ import { PlayerMessage } from "@/components/player/PlayerLayout";
 import { mediaKind } from "@/data/media";
 import { getLocalThumbnailUri, markInUse, useLocalMediaUri } from "@/data/mediaDownloads";
 import { useTranscript } from "@/hooks/useTranscript";
+import { recordLessonOpened } from "@/data/reminderSettings";
 
 // Opened from a downloaded audio or video card. Plays the local file and reads the saved
 // transcript, so it works with no internet connection.
@@ -34,6 +35,12 @@ export default function PlayerScreen() {
     if (!Number.isFinite(mediaId)) return;
     return markInUse(mediaId);
   }, [mediaId]);
+
+  // The first lesson opened each day sets the time of the daily reminder (habit mode).
+  const playable = !!localUri && kind !== null;
+  useEffect(() => {
+    if (playable) recordLessonOpened();
+  }, [playable]);
 
   if (!Number.isFinite(mediaId) || !fileUrl || kind === null) {
     return <PlayerMessage text="Couldn't open this lesson." />;

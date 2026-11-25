@@ -22,6 +22,8 @@ const ICONS = {
   history: { ios: "clock.arrow.circlepath", material: 0xe889, filled: false }, // history
   delete: { ios: "trash", material: 0xe872, filled: false }, // delete
   upload: { ios: "icloud.and.arrow.up", material: 0xe2c3, filled: false }, // cloud_upload
+  close: { ios: "xmark", material: 0xe5cd, filled: false }, // close
+  add: { ios: "plus", material: 0xe145, filled: false }, // add
 } as const;
 
 export type IconName = keyof typeof ICONS;
