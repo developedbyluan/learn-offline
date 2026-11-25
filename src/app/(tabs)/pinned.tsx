@@ -23,6 +23,13 @@ import {
   type PinnedMessage,
 } from "@/data/pinnedMessages";
 import { globalStyles } from "@/styles/global";
+import {
+  attendingEvents,
+  cancelEventReminder,
+  eventFor,
+  remindAfterReply,
+  syncEventReminders,
+} from "@/notifications/eventReminders";
 
 // The signed-in user's pinned messages, loaded fresh each time the tab is opened.
 // Online only. See docs/pinned-messages.md.
@@ -66,6 +73,8 @@ export default function PinnedScreen() {
       if (controller.signal.aborted) return null;
       latestMessages.current = messages;
       setState({ userId: uid, messages, problem: null, loadedAt: Date.now() });
+      // Reminders 30 minutes before the events this user is going to.
+      void syncEventReminders(uid, attendingEvents(messages, uid));
       // Forget local states the server now agrees with.
       setOverrides((previous) => {
         if (!previous || previous.userId !== uid) return previous;
@@ -119,7 +128,13 @@ export default function PinnedScreen() {
             return;
           }
           setOverride(userId, message.id, true);
-          showToast("Reply sent");
+          // May ask for notification permission the first time.
+          const reminder = await remindAfterReply(userId, eventFor(message));
+          showToast(
+            reminder === "no-permission"
+              ? "Reply sent. Turn on notifications to get a reminder."
+              : "Reply sent",
+          );
           void load(userId);
           return;
         }
@@ -146,6 +161,7 @@ export default function PinnedScreen() {
           );
         } else {
           setOverride(userId, message.id, false);
+          void cancelEventReminder(message.id);
           showToast("Reply removed");
         }
         void load(userId);

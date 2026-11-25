@@ -1,26 +1,11 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import {
   ATTENDING_REPLY,
+  bodyLines,
   formatPinnedRange,
   isHappeningNow,
   type PinnedMessage,
 } from "@/data/pinnedMessages";
-
-// A light reading of the markdown body: lines starting with "#" are headings, the rest is
-// text. Blank lines are dropped.
-function bodyLines(body: string) {
-  return body
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const heading = /^(#{1,6})\s*(.*)$/.exec(line);
-      return heading
-        ? { heading: true, level: heading[1].length, text: heading[2] }
-        : { heading: false, level: 0, text: line };
-    })
-    .filter((line) => line.text);
-}
 
 type Props = {
   message: PinnedMessage;

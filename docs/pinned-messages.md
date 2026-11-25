@@ -66,6 +66,7 @@ Both use the same Basic credentials as the list.
   - **The button:** it keeps its state.
   - **The toast:** "You're offline. Try again when you're connected." when offline, otherwise "Couldn't send your reply. Try again." or "Couldn't remove your reply. Try again."
   - **A partial remove:** if some of several deletes fail, the reload shows what's left.
+- **Reminder:** saying "I'll be there!" also schedules a notification 30 minutes before the event starts, and removing the reply cancels it. See [event-reminders.md](event-reminders.md).
 
 ## How it's built
 

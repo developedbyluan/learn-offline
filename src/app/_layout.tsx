@@ -1,4 +1,4 @@
-import { ClerkProvider } from "@clerk/expo";
+import { ClerkProvider, useAuth } from "@clerk/expo";
 import { resourceCache } from "@clerk/expo/resource-cache";
 import { tokenCache } from "@clerk/expo/token-cache";
 import { Stack } from "expo-router";
@@ -8,6 +8,10 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { DialogHost } from "@/components/feedback/ConfirmDialog";
 import { ToastHost } from "@/components/feedback/Toast";
 import { startReminders } from "@/notifications/reminders";
+import {
+  cancelOtherUsersReminders,
+  useEventReminderTaps,
+} from "@/notifications/eventReminders";
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
 
@@ -20,6 +24,8 @@ export default function RootLayout() {
   useEffect(() => {
     startReminders();
   }, []);
+  // Tapping an event reminder opens the Pinned tab.
+  useEventReminderTaps();
 
   return (
     // Needed for swipe gestures, e.g. swipe to delete a listening session.
@@ -46,9 +52,20 @@ export default function RootLayout() {
         {/* In-app messages, usable from any screen: showToast() and confirm(). */}
         <ToastHost />
         <DialogHost />
+        <EventRemindersAuthWatcher />
       </ClerkProvider>
     </GestureHandlerRootView>
   );
+}
+
+// Event reminders belong to the signed-in user: signing out cancels them, and switching
+// accounts cancels the previous account's. See docs/event-reminders.md.
+function EventRemindersAuthWatcher() {
+  const { userId, isLoaded } = useAuth({ treatPendingAsSignedOut: false });
+  useEffect(() => {
+    if (isLoaded) void cancelOtherUsersReminders(userId ?? null);
+  }, [isLoaded, userId]);
+  return null;
 }
 
 const styles = StyleSheet.create({

@@ -190,3 +190,24 @@ export async function deleteReply(replyId: number, userId: string) {
     throw new Error(`Removing the reply failed: HTTP ${res.status}`);
   }
 }
+
+// A light reading of the markdown body: lines starting with "#" are headings, the rest is
+// text. Blank lines are dropped.
+export function bodyLines(body: string) {
+  return body
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const heading = /^(#{1,6})\s*(.*)$/.exec(line);
+      return heading
+        ? { heading: true, level: heading[1].length, text: heading[2] }
+        : { heading: false, level: 0, text: line };
+    })
+    .filter((line) => line.text);
+}
+
+// A short title for the message, e.g. for a notification: its first line, without "#".
+export function messageTitle(body: string) {
+  return bodyLines(body)[0]?.text ?? "Pinned event";
+}

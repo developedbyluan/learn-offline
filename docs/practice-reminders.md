@@ -95,6 +95,7 @@ Both libraries are native, so a **new development build** is needed.
 
 ## Known limitations
 
+- **Event reminders are separate.** The 30-minute reminders for pinned events are on their own channel. See [event-reminders.md](event-reminders.md).
 - **There's no exact alarm.** Google Play restricts `SCHEDULE_EXACT_ALARM`, so a reminder can arrive a few minutes late.
 - **Battery savers can interfere.** Battery savers, some manufacturers' task killers, and force-stopping the app can delay or drop reminders.
 - **Turning notifications off in Android settings.** The switch in the app stays on, but nothing is scheduled. The next app start sees the missing permission and schedules nothing.
