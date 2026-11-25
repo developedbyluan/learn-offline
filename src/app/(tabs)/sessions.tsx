@@ -8,7 +8,7 @@ import { showToast } from "@/components/feedback/Toast";
 import { loadCachedFavorites } from "@/data/favoritesCache";
 import { isOfflineError } from "@/data/networkErrors";
 import { uploadMessage, uploadSessions } from "@/data/sessionUpload";
-import { getLocalThumbnailUri } from "@/data/mediaDownloads";
+import { getDownloadDetails, getLocalThumbnailUri } from "@/data/mediaDownloads";
 import { getLessonTotals } from "@/data/playTimeDb";
 import { globalStyles } from "@/styles/global";
 import { formatDuration } from "@/utils/formatDuration";
@@ -43,10 +43,16 @@ export default function SessionsScreen() {
         setRows(
           totals.map((total) => {
             const item = byMediaId.get(total.mediaId);
+            // A lesson that left the favorites list may still be downloaded.
+            const download = item ? null : getDownloadDetails(total.mediaId);
             return {
               ...total,
-              name: item?.fileName ?? `Lesson ${total.mediaId}`,
-              thumbnail: getLocalThumbnailUri(total.mediaId) ?? item?.fileThumbnailUrl ?? null,
+              name: item?.fileName ?? download?.fileName ?? `Lesson ${total.mediaId}`,
+              thumbnail:
+                getLocalThumbnailUri(total.mediaId) ??
+                item?.fileThumbnailUrl ??
+                download?.thumbnailUrl ??
+                null,
             };
           }),
         );

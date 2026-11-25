@@ -1,5 +1,6 @@
 import { API_BASE_URL, basicAuthHeader } from "@/data/api";
 import { loadCachedFavorites } from "@/data/favoritesCache";
+import { getDownloadDetails } from "@/data/mediaDownloads";
 import { isOfflineError } from "@/data/networkErrors";
 import {
   deleteSession,
@@ -88,7 +89,9 @@ export async function uploadSessions(userId: string): Promise<UploadSummary> {
 
   for (const session of sessions) {
     try {
-      await postSession(toBody(session, userId, slugs.get(session.mediaId)));
+      // A lesson that left the favorites list still has its slug in its download record.
+      const slug = slugs.get(session.mediaId) ?? getDownloadDetails(session.mediaId)?.fileSlug;
+      await postSession(toBody(session, userId, slug));
     } catch (err) {
       console.warn("Session upload failed", session.id, err);
       if (err instanceof UploadError && err.status === 401) {

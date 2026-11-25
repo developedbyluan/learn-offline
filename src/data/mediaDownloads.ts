@@ -37,6 +37,10 @@ export type DownloadSource = {
   fileJsonId: number;
   thumbnailUrl?: string;
   updatedAtOfMedia?: number; // ms since epoch
+  // Shown when the lesson is no longer in the favorites list.
+  fileName?: string;
+  fileAuthor?: string;
+  fileSlug?: string;
 };
 
 // Which version of an item is on the phone, saved next to its files.
@@ -46,6 +50,24 @@ type DownloadRecord = {
   thumbnailUrl: string | null;
   updatedAtOfMedia: number; // ms since epoch; 0 if the server didn't send it
   downloadedAt: number; // ms since epoch
+  // The lesson's details, so it can still be shown after it leaves the favorites list.
+  // Missing in records saved by older app versions until the next favorites refresh.
+  fileName?: string;
+  fileAuthor?: string;
+  fileSlug?: string;
+};
+
+// A lesson that's on the phone, read from its record. Favorite or not.
+export type DownloadedItem = {
+  mediaId: number;
+  fileUrl: string;
+  fileJsonId: number;
+  thumbnailUrl: string | null;
+  updatedAtOfMedia: number;
+  downloadedAt: number;
+  fileName?: string;
+  fileAuthor?: string;
+  fileSlug?: string;
 };
 
 const NONE: DownloadState = { status: "none" };
@@ -61,6 +83,8 @@ const inUse = new Map<number, number>();
 // Items waiting for an update, run one at a time.
 const updateQueue = new Map<number, DownloadSource>();
 let updateQueueRunning = false;
+// Everything on the phone, read from the records. null until read, and after a change.
+let downloadedItems: DownloadedItem[] | null = null;
 
 function mediaDirectory() {
   return new Directory(Paths.document, "media");
@@ -115,11 +139,22 @@ function recordFor(source: DownloadSource): DownloadRecord {
     thumbnailUrl: source.thumbnailUrl || null,
     updatedAtOfMedia: source.updatedAtOfMedia ?? 0,
     downloadedAt: Date.now(),
+    ...detailsOf(source),
+  };
+}
+
+// The display details of a source, leaving out the ones it doesn't have.
+function detailsOf(source: DownloadSource): Pick<DownloadRecord, "fileName" | "fileAuthor" | "fileSlug"> {
+  return {
+    ...(source.fileName ? { fileName: source.fileName } : {}),
+    ...(source.fileAuthor ? { fileAuthor: source.fileAuthor } : {}),
+    ...(source.fileSlug ? { fileSlug: source.fileSlug } : {}),
   };
 }
 
 function writeRecord(mediaId: number, record: DownloadRecord) {
   records.set(mediaId, record);
+  downloadedItems = null;
   try {
     mediaDirectory().create({ idempotent: true });
     const file = recordFile(mediaId);
@@ -168,6 +203,8 @@ function deleteQuietly(file: File) {
 }
 
 function setState(mediaId: number, state: DownloadState) {
+  // A download appeared or went away: list the files again next time.
+  if (states.get(mediaId)?.status !== state.status) downloadedItems = null;
   states.set(mediaId, state);
   listeners.forEach((listener) => listener());
 }
@@ -386,6 +423,9 @@ export function syncDownloads(items: MediaItem[]): void {
       fileJsonId: item.fileJsonId,
       thumbnailUrl: item.fileThumbnailUrl || undefined,
       updatedAtOfMedia: item.updatedAtOfMedia,
+      fileName: item.fileName,
+      fileAuthor: item.fileAuthor,
+      fileSlug: item.fileSlug,
     };
     let state: DownloadState;
     try {
@@ -402,6 +442,22 @@ export function syncDownloads(items: MediaItem[]): void {
       writeRecord(source.mediaId, recordFor(source));
       setState(source.mediaId, { ...state, version: source.updatedAtOfMedia ?? 0 });
       continue;
+    }
+    // Keep the name, author and slug current, so the lesson can still be shown if it
+    // leaves the favorites list. Only the record changes, never the files.
+    const details = detailsOf(source);
+    if (
+      record.fileName !== details.fileName ||
+      record.fileAuthor !== details.fileAuthor ||
+      record.fileSlug !== details.fileSlug
+    ) {
+      writeRecord(source.mediaId, {
+        ...record,
+        fileName: details.fileName,
+        fileAuthor: details.fileAuthor,
+        fileSlug: details.fileSlug,
+      });
+      listeners.forEach((listener) => listener());
     }
     if (isOutdated(record, source)) updateQueue.set(source.mediaId, source);
   }
@@ -540,4 +596,57 @@ export function useMediaDownload(
   return useSyncExternalStore(subscribeDownloads, () =>
     mediaId === undefined || !fileUrl ? null : getDownloadState(mediaId, fileUrl),
   );
+}
+
+const RECORD_NAME = /^media-(\d+)\.meta\.json$/;
+
+// Every lesson on the phone that has a record, newest download first. Favorites and lessons
+// that left the list alike; downloads are never deleted automatically. Returns the same array
+// until a download is added, updated or removed, as useSyncExternalStore requires.
+export function getDownloadedItems(): DownloadedItem[] {
+  if (downloadedItems) return downloadedItems;
+  const items: DownloadedItem[] = [];
+  try {
+    const directory = mediaDirectory();
+    if (directory.exists) {
+      for (const entry of directory.list()) {
+        const match = RECORD_NAME.exec(entry.name);
+        if (!match) continue;
+        const mediaId = Number(match[1]);
+        const record = readRecord(mediaId);
+        if (!record || !fileExists(savedMediaFile(mediaId, record.fileUrl))) continue;
+        items.push({
+          mediaId,
+          fileUrl: record.fileUrl,
+          fileJsonId: record.fileJsonId,
+          thumbnailUrl: record.thumbnailUrl,
+          updatedAtOfMedia: record.updatedAtOfMedia,
+          downloadedAt: record.downloadedAt ?? 0,
+          fileName: record.fileName,
+          fileAuthor: record.fileAuthor,
+          fileSlug: record.fileSlug,
+        });
+      }
+    }
+  } catch (err) {
+    console.warn("Couldn't list downloads", err);
+  }
+  items.sort((a, b) => b.downloadedAt - a.downloadedAt);
+  downloadedItems = items;
+  return items;
+}
+
+// Like getDownloadedItems, but re-renders when downloads change.
+export function useDownloadedItems(): DownloadedItem[] {
+  return useSyncExternalStore(subscribeDownloads, getDownloadedItems);
+}
+
+// A downloaded lesson's saved name, slug and thumbnail URL, or null if it isn't on the phone
+// or has no record. Used where the favorites list no longer has the lesson.
+export function getDownloadDetails(
+  mediaId: number,
+): Pick<DownloadedItem, "fileName" | "fileSlug" | "thumbnailUrl"> | null {
+  const record = readRecord(mediaId);
+  if (!record) return null;
+  return { fileName: record.fileName, fileSlug: record.fileSlug, thumbnailUrl: record.thumbnailUrl };
 }

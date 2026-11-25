@@ -20,6 +20,8 @@ type MediaCardProps = {
   fileUrl?: string;
   fileJsonId?: number;
   updatedAtOfMedia?: number;
+  // Shown in the "Not in favorites anymore" section on Home.
+  notInFavorites?: boolean;
 };
 
 export default function MediaCard({
@@ -31,6 +33,7 @@ export default function MediaCard({
   fileUrl,
   fileJsonId,
   updatedAtOfMedia,
+  notInFavorites,
 }: MediaCardProps) {
   const [failedUris, setFailedUris] = useState<string[]>([]);
   const download = useMediaDownload(mediaId, fileUrl);
@@ -122,6 +125,9 @@ export default function MediaCard({
             thumbnailUrl={thumbnail}
             updatedAtOfMedia={updatedAtOfMedia}
             name={name}
+            author={author}
+            mediaSlug={mediaSlug}
+            notInFavorites={notInFavorites}
           />
         ) : null}
       </View>

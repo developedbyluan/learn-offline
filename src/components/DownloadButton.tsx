@@ -17,6 +17,10 @@ type DownloadButtonProps = {
   thumbnailUrl?: string;
   updatedAtOfMedia?: number;
   name: string;
+  author?: string;
+  mediaSlug?: string;
+  // The lesson left the favorites list: removing it means it can't be downloaded again.
+  notInFavorites?: boolean;
 };
 
 export default function DownloadButton({
@@ -26,6 +30,9 @@ export default function DownloadButton({
   thumbnailUrl,
   updatedAtOfMedia,
   name,
+  author,
+  mediaSlug,
+  notInFavorites = false,
 }: DownloadButtonProps) {
   const state = useMediaDownload(mediaId, fileUrl);
   // A newer version is downloading in the background; the old copy still plays.
@@ -39,7 +46,16 @@ export default function DownloadButton({
     }
     switch (state.status) {
       case "none":
-        startDownload({ mediaId, fileUrl, fileJsonId, thumbnailUrl, updatedAtOfMedia }).catch((err: unknown) => {
+        startDownload({
+          mediaId,
+          fileUrl,
+          fileJsonId,
+          thumbnailUrl,
+          updatedAtOfMedia,
+          fileName: name,
+          fileAuthor: author,
+          fileSlug: mediaSlug,
+        }).catch((err: unknown) => {
           console.warn("Download failed", err);
           showToast(downloadErrorMessage(err));
         });
@@ -56,7 +72,9 @@ export default function DownloadButton({
   async function confirmRemove() {
     const confirmed = await confirm({
       title: "Remove download?",
-      message: name,
+      message: notInFavorites
+        ? `${name} is no longer in your favorites, so you won't be able to download it again.`
+        : name,
       confirmText: "Remove",
       destructive: true,
     });
