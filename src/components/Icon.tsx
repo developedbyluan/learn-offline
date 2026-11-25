@@ -14,6 +14,7 @@ const ICONS = {
   back5: { ios: "gobackward.5", material: 0xe05b, filled: false }, // replay_5
   forward5: { ios: "goforward.5", material: 0xe058, filled: false }, // forward_5
   fullscreen: { ios: "arrow.up.left.and.arrow.down.right", material: 0xe5d0, filled: false }, // fullscreen
+  fullscreenExit: { ios: "arrow.down.right.and.arrow.up.left", material: 0xe5d1, filled: false }, // fullscreen_exit
   list: { ios: "list.bullet", material: 0xe241, filled: false }, // format_list_bulleted
   textSize: { ios: "textformat.size", material: 0xe245, filled: false }, // format_size
   info: { ios: "info.circle", material: 0xe88e, filled: false }, // info
@@ -26,6 +27,8 @@ const ICONS = {
   add: { ios: "plus", material: 0xe145, filled: false }, // add
   repeat: { ios: "repeat", material: 0xe040, filled: false }, // repeat
   setPoint: { ios: "smallcircle.filled.circle", material: 0xe837, filled: false }, // radio_button_checked
+  subtitles: { ios: "captions.bubble.fill", material: 0xe01c, filled: true }, // closed_caption
+  subtitlesOff: { ios: "captions.bubble", material: 0xf1dc, filled: false }, // closed_caption_disabled
 } as const;
 
 export type IconName = keyof typeof ICONS;

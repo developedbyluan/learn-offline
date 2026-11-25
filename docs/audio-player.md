@@ -42,7 +42,7 @@ From top to bottom:
 
   Medium is Android's usual reading size. Line heights are about 1.4×, and subtitle lines are 20 pt apart. The phone's own font-size setting scales all of these too. (Until November 2026 the sizes were 18/22/26/30, which was too big. The saved setting stores the position in the list, so users keep their choice, just smaller.)
 
-  The size is saved on the phone (`transcript-text-size.json`) and used for every lesson. The highlight and auto-scroll keep working at every size.
+  The size is saved on the phone (`transcript-text-size.json`) and used for every lesson. The same setting sizes the subtitles in fullscreen video, where it can also be changed with its own Aa button (see [video-fullscreen.md](video-fullscreen.md)). The highlight and auto-scroll keep working at every size.
 - **Resume:** reopening a lesson jumps to where you left off, paused. See [playback-position.md](playback-position.md).
 - **Play at the end:** if playback has reached the end, Play starts again from the beginning.
 - **Seek bar:** drag the thumb, or tap anywhere on the track. The time label follows your finger, and the audio seeks when you lift it. With TalkBack or VoiceOver, swiping up or down moves 5 seconds.

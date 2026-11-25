@@ -1,9 +1,10 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useEvent, useEventListener } from "expo";
 import { useVideoPlayer, VideoView, type VideoPlayer } from "expo-video";
 import Icon from "@/components/Icon";
 import PlayerLayout, { playerStyles } from "@/components/player/PlayerLayout";
+import VideoFullscreen from "@/components/player/VideoFullscreen";
 import type { EnginePlayerProps } from "@/components/player/AudioPlayerScreen";
 
 // How often the current time is reported, for the seek bar and the transcript highlight.
@@ -18,6 +19,7 @@ function seekVideo(player: VideoPlayer, seconds: number) {
 
 // Plays a downloaded video file with expo-video, in the artwork's place. The sound keeps
 // playing in the background, with a media notification, until the player closes.
+// The full-screen button opens our own fullscreen (VideoFullscreen), which shows subtitles.
 export default function VideoPlayerScreen({
   mediaId,
   localUri,
@@ -26,7 +28,6 @@ export default function VideoPlayerScreen({
   artwork,
   transcript,
 }: EnginePlayerProps) {
-  const videoRef = useRef<VideoView>(null);
   const player = useVideoPlayer(
     { uri: localUri, metadata: { title, artist: author || undefined, artwork } },
     (p) => {
@@ -50,6 +51,12 @@ export default function VideoPlayerScreen({
   // even if sourceLoad fired before the listener was attached.
   const duration = sourceLoad?.duration ?? (isLoaded ? player.duration : 0);
 
+  const [fullscreen, setFullscreen] = useState(false);
+  const closeFullscreen = useCallback(() => setFullscreen(false), []);
+  // Taller-than-wide videos stay portrait in fullscreen.
+  const size = (player.videoTrack ?? sourceLoad?.availableVideoTracks?.[0])?.size;
+  const portraitVideo = !!size && size.height > size.width;
+
   const play = useCallback(() => player.play(), [player]);
   const pause = useCallback(() => player.pause(), [player]);
   const seek = useCallback(
@@ -61,50 +68,71 @@ export default function VideoPlayerScreen({
   );
 
   return (
-    <PlayerLayout
-      mediaId={mediaId}
-      title={title}
-      media={
-        <View style={[playerStyles.media, styles.videoBox]}>
-          <VideoView
-            ref={videoRef}
-            player={player}
-            nativeControls={false}
-            contentFit="contain"
-            style={StyleSheet.absoluteFill}
-          />
-          {status === "error" ? (
-            <View style={[StyleSheet.absoluteFill, styles.errorOverlay]}>
-              <Text style={styles.errorText}>Couldn&apos;t play this video.</Text>
-            </View>
-          ) : (
-            <Pressable
-              onPress={() => void videoRef.current?.enterFullscreen()}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel="Full screen"
-              style={({ pressed }) => [styles.fullscreenButton, pressed && styles.pressed]}
-            >
-              <Icon name="fullscreen" size={22} color="#FFFFFF" />
-            </Pressable>
-          )}
-        </View>
-      }
-      transcript={transcript}
-      currentTime={currentTime}
-      duration={duration}
-      isLoaded={isLoaded}
-      playing={isPlaying}
-      onPlay={play}
-      onPause={pause}
-      onSeek={seek}
-    />
+    <View style={styles.root}>
+      <PlayerLayout
+        mediaId={mediaId}
+        title={title}
+        media={
+          <View style={[playerStyles.media, styles.videoBox]}>
+            {/* The player shows in one VideoView at a time: here, or in fullscreen. */}
+            {!fullscreen && (
+              <VideoView
+                player={player}
+                nativeControls={false}
+                contentFit="contain"
+                style={StyleSheet.absoluteFill}
+              />
+            )}
+            {status === "error" ? (
+              <View style={[StyleSheet.absoluteFill, styles.errorOverlay]}>
+                <Text style={styles.errorText}>Couldn&apos;t play this video.</Text>
+              </View>
+            ) : (
+              <Pressable
+                onPress={() => setFullscreen(true)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Full screen"
+                style={({ pressed }) => [styles.fullscreenButton, pressed && styles.pressed]}
+              >
+                <Icon name="fullscreen" size={22} color="#FFFFFF" />
+              </Pressable>
+            )}
+          </View>
+        }
+        transcript={transcript}
+        currentTime={currentTime}
+        duration={duration}
+        isLoaded={isLoaded}
+        playing={isPlaying}
+        onPlay={play}
+        onPause={pause}
+        onSeek={seek}
+      />
+      {fullscreen && (
+        <VideoFullscreen
+          player={player}
+          onClose={closeFullscreen}
+          lines={transcript?.lines ?? null}
+          currentTime={currentTime}
+          duration={duration}
+          playing={isPlaying}
+          portrait={portraitVideo}
+          onPlay={play}
+          onPause={pause}
+          onSeek={seek}
+        />
+      )}
+    </View>
   );
 }
 
 const FULLSCREEN_BUTTON_SIZE = 36;
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
   videoBox: {
     backgroundColor: "#000000",
   },
