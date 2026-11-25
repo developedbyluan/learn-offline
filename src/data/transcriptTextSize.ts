@@ -1,12 +1,13 @@
 import { useCallback, useState } from "react";
 import { File, Paths } from "expo-file-system";
 
-// Transcript text sizes, cycled by the player's "Aa" button. "Medium" matches the original look.
+// Transcript text sizes, cycled by the player's "Aa" button. Medium (16) is Android's usual
+// reading size; line heights are about 1.4x. The phone's font-size setting scales these too.
 export const TEXT_SIZES = [
-  { name: "Small", fontSize: 18, lineHeight: 25 },
-  { name: "Medium", fontSize: 22, lineHeight: 30 },
-  { name: "Large", fontSize: 26, lineHeight: 35 },
-  { name: "Extra large", fontSize: 30, lineHeight: 40 },
+  { name: "Small", fontSize: 14, lineHeight: 20 },
+  { name: "Medium", fontSize: 16, lineHeight: 22 },
+  { name: "Large", fontSize: 18, lineHeight: 25 },
+  { name: "Extra large", fontSize: 20, lineHeight: 28 },
 ] as const;
 
 export type TextSize = (typeof TEXT_SIZES)[number];

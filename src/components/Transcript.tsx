@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
     paddingBottom: 48,
   },
   line: {
-    marginBottom: 28,
+    marginBottom: 20,
   },
   // Lines in the repeat range are indented, with a blue line in the gap. It must stay inside
   // the ScrollView: anything outside its edges (e.g. a negative margin) is clipped on Android.
