@@ -16,7 +16,7 @@ From top to bottom:
 | Transcript | Every line's English sentence (`target`, trimmed). Speaker labels ending in a colon, like `Narrator:`, are shown above their line in gray. `question`, `answer` and `""` aren't shown |
 | Seek bar | Gray track with a white thumb. Current time on the left, total length on the right |
 | Controls | Back 5 s, Play/Pause (in a gray circle), Forward 5 s |
-| Menu | A small gray row under the controls: a **list** button captioned *Favorites* (back to the favorites list) and **Aa** captioned *Text size* |
+| Menu | A small gray row under the controls: a **list** button captioned *Favorites* (back to the favorites list), **Aa** captioned *Text size*, and **Range** (repeat a part of the lesson, see [play-range.md](play-range.md)) |
 
 **How the transcript behaves:**
 - **Highlight:** the line being spoken turns black, and the others stay gray. "Being spoken" means the last line whose `start` has passed, so the highlight stays on the previous line during gaps between lines.

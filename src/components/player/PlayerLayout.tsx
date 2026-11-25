@@ -3,17 +3,29 @@ import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from "
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import Icon from "@/components/Icon";
-import SeekBar from "@/components/SeekBar";
+import SeekBar, { formatTime } from "@/components/SeekBar";
+import { showToast } from "@/components/feedback/Toast";
 import Transcript from "@/components/Transcript";
 import type { TranscriptResult } from "@/hooks/useTranscript";
 import { usePlaybackPosition } from "@/hooks/usePlaybackPosition";
 import { usePlayTimeTracking } from "@/hooks/usePlayTimeTracking";
 import { useAuth } from "@clerk/expo";
 import { useTranscriptTextSize } from "@/data/transcriptTextSize";
+import {
+  extendRange,
+  initialRange,
+  rangeWithoutLines,
+  usePlayRange,
+  withEnd,
+  withStart,
+} from "@/hooks/usePlayRange";
 
 const SKIP_SECONDS = 5;
 // How close to the end counts as finished, so Play starts again from the beginning.
 const END_TOLERANCE_SECONDS = 0.25;
+// Pressing Play this close after a range's End (while paused) plays the range again.
+const RANGE_RESTART_AFTER_SECONDS = 0.5;
+const RANGE_COLOR = "#0A84FF";
 
 type PlayerLayoutProps = {
   mediaId: number;
@@ -61,16 +73,69 @@ export default function PlayerLayout({
     [onSeek],
   );
 
+  // Play in range: repeats a part of the lesson. See docs/play-range.md.
+  const { range, setRange, clear: clearRange } = usePlayRange({
+    currentTime,
+    playing,
+    onSeek: seekTo,
+  });
+  const lines = transcript?.lines ?? null;
+  // Waits for the transcript, so it starts from the right line, and for the length.
+  const canUseRange = isLoaded && duration > 0 && transcript !== null;
+
+  const toggleRange = useCallback(() => {
+    if (range) {
+      clearRange();
+      return;
+    }
+    let next = initialRange(lines, currentTime, duration);
+    if (!next) {
+      next = rangeWithoutLines(currentTime, duration);
+      showToast("No subtitles here. Use ◎ to set Start and End.");
+    }
+    setRange(next);
+    void seekTo(next.start);
+  }, [range, clearRange, lines, currentTime, duration, setRange, seekTo]);
+
+  const setStartHere = useCallback(() => {
+    if (!range) return;
+    const change = withStart(range, currentTime, duration);
+    setRange(change.range);
+    if (change.notice) showToast(change.notice);
+  }, [range, currentTime, duration, setRange]);
+
+  const setEndHere = useCallback(() => {
+    if (!range) return;
+    const change = withEnd(range, currentTime);
+    setRange(change.range);
+    if (change.notice) showToast(change.notice);
+    // Play the new range from the start right away.
+    void seekTo(change.range.start);
+  }, [range, currentTime, setRange, seekTo]);
+
+  const extendToLine = useCallback(
+    (index: number) => {
+      if (lines) setRange((current) => (current ? extendRange(current, lines, index, duration) : current));
+    },
+    [lines, duration, setRange],
+  );
+
   const togglePlay = useCallback(async () => {
     if (playing) {
       onPause();
       return;
     }
-    if (duration > 0 && currentTime >= duration - END_TOLERANCE_SECONDS) {
+    if (
+      range &&
+      currentTime >= range.end - END_TOLERANCE_SECONDS &&
+      currentTime <= range.end + RANGE_RESTART_AFTER_SECONDS
+    ) {
+      await onSeek(range.start);
+    } else if (duration > 0 && currentTime >= duration - END_TOLERANCE_SECONDS) {
       await onSeek(0);
     }
     onPlay();
-  }, [playing, duration, currentTime, onPlay, onPause, onSeek]);
+  }, [playing, range, duration, currentTime, onPlay, onPause, onSeek]);
 
   const skip = useCallback(
     (delta: number) => {
@@ -119,6 +184,8 @@ export default function PlayerLayout({
             onSeek={seekTo}
             fontSize={textSize.fontSize}
             lineHeight={textSize.lineHeight}
+            range={range}
+            onLineLongPress={range ? extendToLine : undefined}
           />
         )}
       </View>
@@ -128,16 +195,20 @@ export default function PlayerLayout({
       </View>
 
       <View style={styles.controls}>
-        <Pressable
-          onPress={() => skip(-SKIP_SECONDS)}
-          disabled={!isLoaded}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Back 5 seconds"
-          style={({ pressed }) => pressed && styles.pressed}
-        >
-          <Icon name="back5" size={36} color="#000000" />
-        </Pressable>
+        {range ? (
+          <RangeEnd label="Start" time={range.start} currentTime={currentTime} onSet={setStartHere} />
+        ) : (
+          <Pressable
+            onPress={() => skip(-SKIP_SECONDS)}
+            disabled={!isLoaded}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Back 5 seconds"
+            style={({ pressed }) => pressed && styles.pressed}
+          >
+            <Icon name="back5" size={36} color="#000000" />
+          </Pressable>
+        )}
 
         <Pressable
           onPress={togglePlay}
@@ -153,16 +224,20 @@ export default function PlayerLayout({
           )}
         </Pressable>
 
-        <Pressable
-          onPress={() => skip(SKIP_SECONDS)}
-          disabled={!isLoaded}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Forward 5 seconds"
-          style={({ pressed }) => pressed && styles.pressed}
-        >
-          <Icon name="forward5" size={36} color="#000000" />
-        </Pressable>
+        {range ? (
+          <RangeEnd label="End" time={range.end} currentTime={currentTime} onSet={setEndHere} />
+        ) : (
+          <Pressable
+            onPress={() => skip(SKIP_SECONDS)}
+            disabled={!isLoaded}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Forward 5 seconds"
+            style={({ pressed }) => pressed && styles.pressed}
+          >
+            <Icon name="forward5" size={36} color="#000000" />
+          </Pressable>
+        )}
       </View>
 
       <View style={styles.menu}>
@@ -187,6 +262,23 @@ export default function PlayerLayout({
           <Icon name="textSize" size={22} color={MENU_ICON_COLOR} />
           <MenuLabel text="Text size" />
         </Pressable>
+        <Pressable
+          onPress={toggleRange}
+          disabled={!canUseRange && !range}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel={range ? "Stop repeating" : "Repeat a range"}
+          accessibilityHint={range ? undefined : "Repeats the current line. Long-press lines to add them."}
+          accessibilityState={{ selected: !!range, disabled: !canUseRange && !range }}
+          style={({ pressed }) => [
+            styles.menuButton,
+            !canUseRange && !range && styles.disabled,
+            pressed && styles.pressed,
+          ]}
+        >
+          <Icon name="repeat" size={22} color={range ? RANGE_COLOR : MENU_ICON_COLOR} />
+          <MenuLabel text="Range" color={range ? RANGE_COLOR : undefined} />
+        </Pressable>
       </View>
     </View>
   );
@@ -194,16 +286,48 @@ export default function PlayerLayout({
 
 // The small caption under a menu icon. Hidden from screen readers, because the button
 // already has its own label.
-function MenuLabel({ text }: { text: string }) {
+function MenuLabel({ text, color }: { text: string; color?: string }) {
   return (
     <Text
-      style={styles.menuLabel}
+      style={[styles.menuLabel, color ? { color } : null]}
       maxFontSizeMultiplier={1.3}
       accessible={false}
       importantForAccessibility="no"
     >
       {text}
     </Text>
+  );
+}
+
+// One end of the repeat range: "Start: 0:12" and a ◎ button that moves it to the
+// current playback time.
+function RangeEnd({
+  label,
+  time,
+  currentTime,
+  onSet,
+}: {
+  label: "Start" | "End";
+  time: number;
+  currentTime: number;
+  onSet: () => void;
+}) {
+  return (
+    <View style={styles.rangeEnd}>
+      <Text style={styles.rangeText} maxFontSizeMultiplier={1.3}>
+        <Text style={styles.rangeLabel}>{label}: </Text>
+        {formatTime(time)}
+      </Text>
+      <Pressable
+        onPress={onSet}
+        hitSlop={10}
+        accessibilityRole="button"
+        accessibilityLabel={`Set ${label.toLowerCase()} to current time, now ${formatTime(currentTime)}`}
+        style={({ pressed }) => [styles.setPoint, pressed && styles.pressed]}
+      >
+        <Icon name="setPoint" size={24} color={RANGE_COLOR} />
+      </Pressable>
+    </View>
   );
 }
 
@@ -309,5 +433,29 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.5,
+  },
+  disabled: {
+    opacity: 0.35,
+  },
+  rangeEnd: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  rangeText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#000000",
+    fontVariant: ["tabular-nums"],
+  },
+  rangeLabel: {
+    fontWeight: "400",
+    color: "#8E8E93",
+  },
+  setPoint: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

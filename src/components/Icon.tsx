@@ -24,6 +24,8 @@ const ICONS = {
   upload: { ios: "icloud.and.arrow.up", material: 0xe2c3, filled: false }, // cloud_upload
   close: { ios: "xmark", material: 0xe5cd, filled: false }, // close
   add: { ios: "plus", material: 0xe145, filled: false }, // add
+  repeat: { ios: "repeat", material: 0xe040, filled: false }, // repeat
+  setPoint: { ios: "smallcircle.filled.circle", material: 0xe837, filled: false }, // radio_button_checked
 } as const;
 
 export type IconName = keyof typeof ICONS;
