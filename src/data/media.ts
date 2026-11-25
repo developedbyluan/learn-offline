@@ -1,3 +1,5 @@
+import { API_BASE_URL } from "@/data/api";
+
 export type MediaItem = {
   id: number;
   mediaId: number;
@@ -18,8 +20,6 @@ export type MediaItem = {
   // Optional: favorites saved by an older app version don't have it.
   updatedAtOfMedia?: number;
 };
-
-const API_BASE_URL = "https://flucom-api-bun.developedbyluan.workers.dev";
 
 // Lowercase extension from the end of a URL's path, e.g. ".mp3". Empty if there isn't one.
 export function fileExtension(url: string) {

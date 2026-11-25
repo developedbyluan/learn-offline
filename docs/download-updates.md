@@ -93,6 +93,8 @@ Use the current development build with `npx expo start`.
 
 ## Known limitations
 
+- Lessons that left the favorites list are never updated, because `syncDownloads` only sees the list. They keep the version they had, and are listed under "Not in favorites anymore" on Home (see [media-downloads.md](media-downloads.md)).
+
 - **It only works as well as `updatedAtOfMedia`.** A file replaced in storage without updating the database won't be noticed.
 - **Downloads from before this change are assumed current.** Remove and re-download one to force a fresh copy.
 - **No update while offline.** The next refresh while online catches up.

@@ -104,6 +104,13 @@ type FavoritesResult =
 
 If `result.userId` does not match the current `userId`, the screen shows the spinner, so it never shows a previous user's list. This also avoids resetting state synchronously inside the effect, which the `react-hooks/set-state-in-effect` lint rule rejects. The effect sets a `cancelled` flag in its cleanup so a late result from an old request is ignored.
 
+### Lessons that leave the list
+
+Downloads whose lesson is no longer in the favorites list appear below the list, under **"Not in favorites anymore"**, with the line "Still on this phone. Remove them when you're done."
+- They come from `useDownloadedItems()`, minus the `mediaId`s in the list on screen (fresh or saved).
+- If every favorite is gone but leftovers remain, the screen shows "You have no favorites yet." above the section, instead of the centered empty message.
+- A lesson added back to favorites moves back up into the list.
+
 ## Verification
 
 - `npx tsc --noEmit` passes.

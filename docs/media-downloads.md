@@ -89,6 +89,9 @@ The state is kept at module level, not inside a component. This has two effects:
 | `getLocalThumbnailUri(mediaId)` | Returns the saved thumbnail's `file://` URI, or `null`. It reads the cached state, so it's cheap to call while rendering. |
 | `loadLocalTranscript(mediaId)` | Reads the saved transcript. Returns the parsed `MediaJson`, or `null` if it's missing or unreadable. |
 | `getTranscript(mediaId, fileJsonId)` | Returns the saved transcript when there is one, otherwise fetches it with `fetchMediaJson`. |
+| `getDownloadedItems()` | Every lesson on the phone that has a `.meta.json` record and a media file, newest download first. It reads the folder once and caches the array until a download appears, goes away, or a record changes. |
+| `useDownloadedItems()` | A React hook around `getDownloadedItems()`. Home uses it for the "Not in favorites anymore" section. |
+| `getDownloadDetails(mediaId)` | The record's saved `fileName`, `fileSlug` and `thumbnailUrl`, or `null`. The Sessions tab and the upload use it for lessons that left the favorites list. |
 
 When both the transcript and the media are saved, `startDownload` sets the state to `downloaded`, then calls `ensureExtras` in the background for the thumbnail. All three files go through the same steps in the helper `downloadTo()`: download to a `.part` file in the cache, then move it into `media/`.
 
@@ -223,3 +226,17 @@ This change is JavaScript only. `expo-file-system` is already part of the develo
 - **Plain files only.** `fileUrl` must point to an actual file. A streaming playlist URL (such as HLS `.m3u8`) would save only the playlist, not the media.
 
 > **Update:** downloaded items now update themselves when `updatedAtOfMedia` changes, and the list refreshes on pull-to-refresh and when the app returns. See [download-updates.md](download-updates.md).
+
+## Downloads outlive the favorites list
+
+A download is never deleted automatically. When a lesson leaves the user's favorites, its files stay, and Home lists it at the bottom under **"Not in favorites anymore"**. From there it still plays offline, and the ✓ button removes it. The remove dialog warns that it can't be downloaded again, because the lesson no longer has a card in the list.
+
+So the card can still be drawn, each `.meta.json` record also stores the lesson's `fileName`, `fileAuthor` and `fileSlug`:
+- **New downloads:** `startDownload` saves them.
+- **Existing downloads:** `syncDownloads` fills them in on the next successful refresh. It rewrites the record only, never the files.
+
+These fields don't count as a change, so renaming a lesson doesn't download it again.
+
+**Shared by every account on the phone.** Downloads already are, so the section shows every leftover download to whoever is signed in.
+
+**Known limit.** A lesson downloaded before records existed (see [download-updates.md](download-updates.md)), and removed from favorites before any later refresh, has no record. It isn't listed, and its files stay hidden.

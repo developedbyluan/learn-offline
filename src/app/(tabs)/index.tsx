@@ -18,7 +18,7 @@ import { isOfflineError } from "@/data/networkErrors";
 
 import { fetchFavorites, type MediaItem } from "@/data/media";
 import { loadCachedFavorites, saveCachedFavorites } from "@/data/favoritesCache";
-import { syncDownloads } from "@/data/mediaDownloads";
+import { syncDownloads, useDownloadedItems, type DownloadedItem } from "@/data/mediaDownloads";
 
 // `items` may be the saved copy. `problem` says why the latest request failed (offline or
 // another failure); a saved copy is then shown with a StatusBanner, and with no saved copy
@@ -34,6 +34,8 @@ export default function HomeScreen() {
   const [result, setResult] = useState<FavoritesResult | null>(null);
 
   const [refreshing, setRefreshing] = useState(false);
+  // Every lesson on the phone; the ones not in the list are shown in their own section.
+  const downloads = useDownloadedItems();
   // Only read in effects and callbacks.
   const currentUserId = useRef(userId);
   const lastFetchAt = useRef(0);
@@ -118,7 +120,9 @@ export default function HomeScreen() {
     );
   }
   const { items, problem } = result;
-  if (items.length === 0) {
+  const favoriteIds = new Set(items.map((item) => item.mediaId));
+  const leftovers = downloads.filter((download) => !favoriteIds.has(download.mediaId));
+  if (items.length === 0 && leftovers.length === 0) {
     return (
       <Centered>
         <Text>You have no favorites yet.</Text>
@@ -138,6 +142,7 @@ export default function HomeScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
       {problem && <StatusBanner kind={problem} />}
+      {items.length === 0 && <Text style={styles.noFavorites}>You have no favorites yet.</Text>}
       {items.map((item) => (
         <MediaCard
           key={item.id}
@@ -148,9 +153,42 @@ export default function HomeScreen() {
           fileUrl={item.fileUrl}
           fileJsonId={item.fileJsonId}
           updatedAtOfMedia={item.updatedAtOfMedia}
+          mediaSlug={item.fileSlug}
         />
       ))}
+      {leftovers.length > 0 && <NotInFavorites items={leftovers} />}
     </ScrollView>
+  );
+}
+
+// Downloads whose lesson left the favorites list. They stay on the phone until the user
+// removes them, and still play offline.
+function NotInFavorites({ items }: { items: DownloadedItem[] }) {
+  return (
+    <>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle} accessibilityRole="header">
+          Not in favorites anymore
+        </Text>
+        <Text style={styles.sectionMessage}>
+          {"Still on this phone. Remove them when you're done."}
+        </Text>
+      </View>
+      {items.map((item) => (
+        <MediaCard
+          key={`download-${item.mediaId}`}
+          name={item.fileName ?? `Lesson ${item.mediaId}`}
+          author={item.fileAuthor ?? ""}
+          thumbnail={item.thumbnailUrl ?? undefined}
+          mediaId={item.mediaId}
+          mediaSlug={item.fileSlug}
+          fileUrl={item.fileUrl}
+          fileJsonId={item.fileJsonId}
+          updatedAtOfMedia={item.updatedAtOfMedia}
+          notInFavorites
+        />
+      ))}
+    </>
   );
 }
 
@@ -209,6 +247,29 @@ const styles = StyleSheet.create({
   emptyBanner: {
     alignSelf: "stretch",
     marginTop: 16,
+  },
+  noFavorites: {
+    fontSize: 15,
+    color: "#6C6C70",
+    textAlign: "center",
+    marginTop: 16,
+  },
+  sectionHeader: {
+    marginTop: 8,
+    paddingTop: 24,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "#C6C6C8",
+    gap: 4,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#000000",
+  },
+  sectionMessage: {
+    fontSize: 15,
+    lineHeight: 20,
+    color: "#6C6C70",
   },
   failedTitle: {
     marginTop: 12,

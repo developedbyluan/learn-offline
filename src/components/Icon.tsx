@@ -18,6 +18,10 @@ const ICONS = {
   textSize: { ios: "textformat.size", material: 0xe245, filled: false }, // format_size
   info: { ios: "info.circle", material: 0xe88e, filled: false }, // info
   wifiOff: { ios: "wifi.slash", material: 0xe1da, filled: false }, // wifi_off
+  chevronRight: { ios: "chevron.right", material: 0xe5cc, filled: false }, // chevron_right
+  history: { ios: "clock.arrow.circlepath", material: 0xe889, filled: false }, // history
+  delete: { ios: "trash", material: 0xe872, filled: false }, // delete
+  upload: { ios: "icloud.and.arrow.up", material: 0xe2c3, filled: false }, // cloud_upload
 } as const;
 
 export type IconName = keyof typeof ICONS;
