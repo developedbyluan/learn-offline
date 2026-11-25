@@ -3,16 +3,32 @@
 export const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://flucom-api-bun.developedbyluan.workers.dev";
 
-// HTTP Basic auth for endpoints that need it (e.g. POST /sessions).
+// The commonvocab server (Cloudflare Workers), for pinned messages. See docs/pinned-messages.md.
+export const COMMONVOCAB_BASE_URL = "https://commonvocab.developedbyluan.workers.dev";
+
 // Note: EXPO_PUBLIC_ variables are embedded in the app bundle, so these credentials can be
 // extracted from the app. Fine for internal testing; see docs/play-time-tracking.md.
-export function basicAuthHeader(): string {
-  const user = process.env.EXPO_PUBLIC_API_USER;
-  const pass = process.env.EXPO_PUBLIC_API_PASS;
-  if (!user || !pass) {
-    throw new Error("Missing EXPO_PUBLIC_API_USER or EXPO_PUBLIC_API_PASS");
-  }
+function basicAuth(user: string | undefined, pass: string | undefined, names: string): string {
+  if (!user || !pass) throw new Error(`Missing ${names}`);
   return `Basic ${base64(`${user}:${pass}`)}`;
+}
+
+// HTTP Basic auth for flucom-api endpoints that need it (e.g. POST /sessions).
+export function basicAuthHeader(): string {
+  return basicAuth(
+    process.env.EXPO_PUBLIC_API_USER,
+    process.env.EXPO_PUBLIC_API_PASS,
+    "EXPO_PUBLIC_API_USER or EXPO_PUBLIC_API_PASS",
+  );
+}
+
+// HTTP Basic auth for the commonvocab server, which has its own credentials.
+export function commonvocabAuthHeader(): string {
+  return basicAuth(
+    process.env.EXPO_PUBLIC_COMMONVOCAB_API_USER,
+    process.env.EXPO_PUBLIC_COMMONVOCAB_API_PASS,
+    "EXPO_PUBLIC_COMMONVOCAB_API_USER or EXPO_PUBLIC_COMMONVOCAB_API_PASS",
+  );
 }
 
 const BASE64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
