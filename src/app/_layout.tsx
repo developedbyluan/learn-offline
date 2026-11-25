@@ -8,10 +8,9 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { DialogHost } from "@/components/feedback/ConfirmDialog";
 import { ToastHost } from "@/components/feedback/Toast";
 import { startReminders } from "@/notifications/reminders";
-import {
-  cancelOtherUsersReminders,
-  useEventReminderTaps,
-} from "@/notifications/eventReminders";
+import { cancelOtherUsersReminders } from "@/notifications/eventReminders";
+import { startPush, syncPush } from "@/notifications/push";
+import { useNotificationTaps } from "@/notifications/taps";
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
 
@@ -23,9 +22,10 @@ export default function RootLayout() {
   // Keeps the daily practice reminders in line with the settings.
   useEffect(() => {
     startReminders();
+    startPush();
   }, []);
-  // Tapping an event reminder opens the Pinned tab.
-  useEventReminderTaps();
+  // Tapping an event reminder or a new-event push opens the Pinned tab.
+  useNotificationTaps();
 
   return (
     // Needed for swipe gestures, e.g. swipe to delete a listening session.
@@ -52,18 +52,21 @@ export default function RootLayout() {
         {/* In-app messages, usable from any screen: showToast() and confirm(). */}
         <ToastHost />
         <DialogHost />
-        <EventRemindersAuthWatcher />
+        <NotificationsAuthWatcher />
       </ClerkProvider>
     </GestureHandlerRootView>
   );
 }
 
-// Event reminders belong to the signed-in user: signing out cancels them, and switching
-// accounts cancels the previous account's. See docs/event-reminders.md.
-function EventRemindersAuthWatcher() {
+// Notifications belong to the signed-in user. Signing out cancels event reminders and
+// unregisters the phone from new-event pushes; switching accounts moves both to the new
+// account. See docs/event-reminders.md and docs/push-notifications.md.
+function NotificationsAuthWatcher() {
   const { userId, isLoaded } = useAuth({ treatPendingAsSignedOut: false });
   useEffect(() => {
-    if (isLoaded) void cancelOtherUsersReminders(userId ?? null);
+    if (!isLoaded) return;
+    void cancelOtherUsersReminders(userId ?? null);
+    void syncPush(userId ?? null);
   }, [isLoaded, userId]);
   return null;
 }

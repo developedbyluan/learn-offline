@@ -15,6 +15,7 @@ import {
   type ReminderTime,
 } from "@/data/reminderSettings";
 import { requestReminderPermission } from "@/notifications/reminders";
+import { turnOffPush, turnOnPush, usePushState } from "@/notifications/push";
 import { globalStyles } from "@/styles/global";
 
 export default function SettingsScreen() {
@@ -22,6 +23,7 @@ export default function SettingsScreen() {
     <ScrollView style={globalStyles.container} contentContainerStyle={styles.content}>
       <Text style={globalStyles.title}>Settings</Text>
       <ReminderSection />
+      <EventsSection />
       <UserButton />
     </ScrollView>
   );
@@ -188,6 +190,43 @@ function ReminderSection() {
               : `Reminds you at ${formatTime(DEFAULT_REMINDER_TIME)} until you start your first lesson.`}
         </Text>
       )}
+    </View>
+  );
+}
+
+// New-event pushes from the server. The switch is on only when they can actually arrive:
+// turned on here and allowed by the phone. See docs/push-notifications.md.
+function EventsSection() {
+  const { enabled, permissionGranted } = usePushState();
+  const [asking, setAsking] = useState(false);
+
+  async function toggle(on: boolean) {
+    if (!on) {
+      turnOffPush();
+      return;
+    }
+    setAsking(true);
+    try {
+      await turnOnPush();
+    } finally {
+      setAsking(false);
+    }
+  }
+
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle} accessibilityRole="header">
+        Events
+      </Text>
+      <View style={styles.group}>
+        <SwitchRow
+          label="New pinned events"
+          value={enabled && permissionGranted === true}
+          disabled={asking}
+          onValueChange={(on) => void toggle(on)}
+        />
+      </View>
+      <Text style={styles.footnote}>Get a notification when a new event is pinned.</Text>
     </View>
   );
 }

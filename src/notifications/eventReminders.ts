@@ -1,7 +1,5 @@
-import { useEffect } from "react";
 import { Platform } from "react-native";
 import * as Notifications from "expo-notifications";
-import { router } from "expo-router";
 import {
   attendingReplyIds,
   messageTitle,
@@ -16,7 +14,8 @@ const CHANNEL_ID = "event-reminders";
 // Each reminder's id is `${PREFIX}<messageId>`.
 const PREFIX = "event-reminder-";
 const LEAD_MS = 30 * 60 * 1000;
-const DATA_TYPE = "event-reminder";
+// `data.type` of a reminder; its tap opens the Pinned tab (see taps.ts).
+export const EVENT_REMINDER_TYPE = "event-reminder";
 
 export type AttendingEvent = {
   messageId: number;
@@ -97,7 +96,7 @@ async function schedule(userId: string, event: AttendingEvent) {
   if (date <= Date.now()) return;
   await ensureEventChannel();
   const data: ReminderData = {
-    type: DATA_TYPE,
+    type: EVENT_REMINDER_TYPE,
     messageId: event.messageId,
     userId,
     startsAt: event.start,
@@ -188,27 +187,4 @@ export function cancelOtherUsersReminders(userId: string | null): Promise<void> 
         .map((request) => cancel(request.identifier)),
     );
   });
-}
-
-function isEventReminder(response: Notifications.NotificationResponse | null) {
-  return (
-    response !== null &&
-    response.actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER &&
-    response.notification.request.content.data?.type === DATA_TYPE
-  );
-}
-
-// Tapping a reminder opens the Pinned tab, whether the app was running or not.
-export function useEventReminderTaps() {
-  useEffect(() => {
-    const last = Notifications.getLastNotificationResponse();
-    if (isEventReminder(last)) {
-      router.push("/pinned");
-      void Notifications.clearLastNotificationResponseAsync().catch(() => undefined);
-    }
-    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      if (isEventReminder(response)) router.push("/pinned");
-    });
-    return () => subscription.remove();
-  }, []);
 }

@@ -40,9 +40,10 @@ All changes run one after another, so a cancel never interleaves with a schedule
 
 | File | What it does |
 | --- | --- |
-| `src/notifications/eventReminders.ts` | The channel, `syncEventReminders`, `remindAfterReply`, `cancelEventReminder`, `cancelOtherUsersReminders`, and `useEventReminderTaps`, which opens the Pinned tab. |
+| `src/notifications/eventReminders.ts` | The channel, `syncEventReminders`, `remindAfterReply`, `cancelEventReminder` and `cancelOtherUsersReminders`. |
+| `src/notifications/taps.ts` | `useNotificationTaps`, which opens the Pinned tab when a reminder is tapped. |
 | `src/app/(tabs)/pinned.tsx` | Syncs after each load, schedules after a send, and cancels after a remove. |
-| `src/app/_layout.tsx` | `useEventReminderTaps()`, and `EventRemindersAuthWatcher`, which cancels on sign-out or an account switch. |
+| `src/app/_layout.tsx` | `useNotificationTaps()`, and `NotificationsAuthWatcher`, which cancels on sign-out or an account switch. |
 | `src/data/pinnedMessages.ts` | `messageTitle`, the first line of the body, shared with the card's `bodyLines`. |
 
 ## Testing on a phone
@@ -59,4 +60,4 @@ All changes run one after another, so a cancel never interleaves with a schedule
 - **Server changes arrive late.** If the event's time changes, or it's unpinned or cancelled, the phone only learns on the next Pinned load. If the user doesn't open the tab, the old reminder still fires.
 - **Replies made elsewhere** (web, another app) get a reminder only after the app loads the Pinned list.
 - **There's no exact alarm**, so a reminder can arrive a few minutes late, as with practice reminders.
-- **No "new event" alerts.** Local notifications can't announce newly pinned messages. That would need server push.
+- **No "new event" alerts here.** Newly pinned messages are announced by server push instead. See [push-notifications.md](push-notifications.md).

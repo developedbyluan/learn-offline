@@ -2,6 +2,8 @@
 
 The **Pinned** tab (Home, Sessions, **Pinned**, Settings) shows the signed-in user's pinned messages, such as an upcoming coaching session.
 
+**New events** are announced by server push when a message is pinned. See [push-notifications.md](push-notifications.md). The Pinned tab shows a "Get notified about new events" card until notifications are allowed.
+
 ## Where the data comes from
 
 ```

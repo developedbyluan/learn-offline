@@ -10,7 +10,9 @@ import {
 } from "react-native";
 import { useAuth } from "@clerk/expo";
 import { useFocusEffect } from "expo-router";
+import * as Notifications from "expo-notifications";
 import PinnedCard from "@/components/PinnedCard";
+import PushPromptCard from "@/components/PushPromptCard";
 import { showToast } from "@/components/feedback/Toast";
 import { isOfflineError } from "@/data/networkErrors";
 import {
@@ -23,6 +25,7 @@ import {
   type PinnedMessage,
 } from "@/data/pinnedMessages";
 import { globalStyles } from "@/styles/global";
+import { NEW_PINNED_TYPE } from "@/notifications/push";
 import {
   attendingEvents,
   cancelEventReminder,
@@ -181,6 +184,15 @@ export default function PinnedScreen() {
 
   useEffect(() => () => request.current?.abort(), []);
 
+  // A new-event push while the app is open: show the new message right away.
+  useEffect(() => {
+    if (!userId) return;
+    const subscription = Notifications.addNotificationReceivedListener((notification) => {
+      if (notification.request.content.data?.type === NEW_PINNED_TYPE) void load(userId);
+    });
+    return () => subscription.remove();
+  }, [userId, load]);
+
   const onRefresh = useCallback(async () => {
     if (!userId) return;
     setRefreshing(true);
@@ -210,6 +222,7 @@ export default function PinnedScreen() {
       contentContainerStyle={[styles.content, visible.length === 0 && styles.contentEmpty]}
       refreshControl={refreshControl}
     >
+      <PushPromptCard />
       {state.problem && (
         <View style={styles.problem} accessible accessibilityRole="alert">
           <Text style={styles.problemText}>{PROBLEM_TEXT[state.problem]}</Text>
