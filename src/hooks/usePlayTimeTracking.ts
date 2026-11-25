@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { AppState } from "react-native";
 import { randomUUID } from "expo-crypto";
 import { checkpointSession, finishSession, insertOpenSession } from "@/data/playTimeDb";
+import { localDate } from "@/utils/localDate";
 
 // While playing, save the running total at most this often, so a crash or force-quit
 // loses at most about this much time.
@@ -13,12 +14,6 @@ type Options = {
   playing: boolean;
   currentTime: number; // only used as a frequent "still playing" tick
 };
-
-// The phone's local calendar date, YYYY-MM-DD.
-function localDate(date: Date) {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
 
 // Records one listening session for as long as the player is open. Only time while media
 // is actually playing counts, measured with the monotonic clock (performance.now()), so

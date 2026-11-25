@@ -2,10 +2,12 @@ import { ClerkProvider } from "@clerk/expo";
 import { resourceCache } from "@clerk/expo/resource-cache";
 import { tokenCache } from "@clerk/expo/token-cache";
 import { Stack } from "expo-router";
+import { useEffect } from "react";
 import { StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { DialogHost } from "@/components/feedback/ConfirmDialog";
 import { ToastHost } from "@/components/feedback/Toast";
+import { startReminders } from "@/notifications/reminders";
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
 
@@ -14,6 +16,11 @@ if (!publishableKey) {
 }
 
 export default function RootLayout() {
+  // Keeps the daily practice reminders in line with the settings.
+  useEffect(() => {
+    startReminders();
+  }, []);
+
   return (
     // Needed for swipe gestures, e.g. swipe to delete a listening session.
     <GestureHandlerRootView style={styles.root}>
