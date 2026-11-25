@@ -16,7 +16,7 @@ From top to bottom:
 | Transcript | Every line's English sentence (`target`, trimmed). Speaker labels ending in a colon, like `Narrator:`, are shown above their line in gray. `question`, `answer` and `""` aren't shown |
 | Seek bar | Gray track with a white thumb. Current time on the left, total length on the right |
 | Controls | Back 5 s, Play/Pause (in a gray circle), Forward 5 s |
-| Menu | A small gray row under the controls: a **list** button captioned *Favorites* (back to the favorites list) and **Aa** captioned *Text size* |
+| Menu | A small gray row under the controls: a **list** button captioned *Favorites* (back to the favorites list), **Aa** captioned *Text size*, and **Range** (repeat a part of the lesson, see [play-range.md](play-range.md)) |
 
 **How the transcript behaves:**
 - **Highlight:** the line being spoken turns black, and the others stay gray. "Being spoken" means the last line whose `start` has passed, so the highlight stays on the previous line during gaps between lines.
@@ -31,7 +31,18 @@ From top to bottom:
 
 **Other behaviors:**
 - **Favorites:** closes the player and shows the favorites list, the same as the back button. Playback stops, and the position is saved. This button used to be a star, which read like "unfavorite this lesson", so it's now a list icon with a caption.
-- **Aa:** each tap steps the transcript text through Small (18), Medium (22, the default), Large (26) and Extra large (30), then back to Small. The size is saved on the phone (`transcript-text-size.json`) and used for every lesson. The highlight and auto-scroll keep working at every size.
+- **Aa:** each tap steps the transcript text through these sizes, then back to Small:
+
+  | Name | Font size | Line height |
+  | --- | --- | --- |
+  | Small | 14 | 20 |
+  | **Medium** (default) | 16 | 22 |
+  | Large | 18 | 25 |
+  | Extra large | 20 | 28 |
+
+  Medium is Android's usual reading size. Line heights are about 1.4×, and subtitle lines are 20 pt apart. The phone's own font-size setting scales all of these too. (Until November 2026 the sizes were 18/22/26/30, which was too big. The saved setting stores the position in the list, so users keep their choice, just smaller.)
+
+  The size is saved on the phone (`transcript-text-size.json`) and used for every lesson. The highlight and auto-scroll keep working at every size.
 - **Resume:** reopening a lesson jumps to where you left off, paused. See [playback-position.md](playback-position.md).
 - **Play at the end:** if playback has reached the end, Play starts again from the beginning.
 - **Seek bar:** drag the thumb, or tap anywhere on the track. The time label follows your finger, and the audio seeks when you lift it. With TalkBack or VoiceOver, swiping up or down moves 5 seconds.

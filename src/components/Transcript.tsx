@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useRef } from "react";
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { TranscriptLine } from "@/data/media";
+import type { PlayRange } from "@/hooks/usePlayRange";
 
 type TranscriptProps = {
   lines: TranscriptLine[];
@@ -8,6 +9,10 @@ type TranscriptProps = {
   onSeek: (seconds: number) => void;
   fontSize: number;
   lineHeight: number;
+  // The repeat range, if any: its lines get a blue bar.
+  range?: PlayRange | null;
+  // Long-pressing a line (while a range is on) adds it to the range.
+  onLineLongPress?: (index: number) => void;
 };
 
 // After the user scrolls by hand, wait this long before following the audio again.
@@ -35,6 +40,12 @@ export function isAnswerHidden(line: TranscriptLine, currentTime: number) {
   return !playing;
 }
 
+// Whether a line overlaps the repeat range. A line with broken timing counts from its start.
+export function lineInRange(line: TranscriptLine, range: PlayRange) {
+  const end = line.end > line.start ? line.end : line.start;
+  return line.start < range.end && end >= range.start;
+}
+
 // A speaker label is any text ending in a colon, e.g. "Narrator:".
 // "question", "answer" and "" aren't shown.
 function speakerLabel(speaker: string) {
@@ -47,6 +58,8 @@ export default function Transcript({
   onSeek,
   fontSize,
   lineHeight,
+  range = null,
+  onLineLongPress,
 }: TranscriptProps) {
   const scrollRef = useRef<ScrollView>(null);
   const lineYs = useRef<number[]>([]);
@@ -84,7 +97,9 @@ export default function Transcript({
           line={line}
           isActive={index === active}
           hidden={isAnswerHidden(line, currentTime)}
+          inRange={range !== null && lineInRange(line, range)}
           onSeek={onSeek}
+          onLongPress={onLineLongPress}
           onLineLayout={handleLineLayout}
           fontSize={fontSize}
           lineHeight={lineHeight}
@@ -99,7 +114,9 @@ type LineProps = {
   line: TranscriptLine;
   isActive: boolean;
   hidden: boolean; // a blurred answer line
+  inRange: boolean; // part of the repeat range
   onSeek: (seconds: number) => void;
+  onLongPress?: (index: number) => void;
   onLineLayout: (index: number, y: number) => void;
   fontSize: number;
   lineHeight: number;
@@ -112,7 +129,9 @@ const Line = memo(function Line({
   line,
   isActive,
   hidden,
+  inRange,
   onSeek,
+  onLongPress,
   onLineLayout,
   fontSize,
   lineHeight,
@@ -123,17 +142,31 @@ const Line = memo(function Line({
   return (
     <Pressable
       onPress={() => onSeek(line.start)}
+      onLongPress={onLongPress ? () => onLongPress(index) : undefined}
       onLayout={(event) => onLineLayout(index, event.nativeEvent.layout.y)}
       accessibilityRole="button"
       accessibilityLabel={hidden ? "Hidden answer" : undefined}
       accessibilityHint="Plays from this line"
-      style={({ pressed }) => [styles.line, pressed && styles.pressed]}
+      accessibilityState={onLongPress ? { selected: inRange } : undefined}
+      accessibilityActions={
+        onLongPress ? [{ name: "longpress", label: "Add to repeat range" }] : undefined
+      }
+      onAccessibilityAction={(event) => {
+        if (event.nativeEvent.actionName === "longpress") onLongPress?.(index);
+      }}
+      style={({ pressed }) => [styles.line, inRange && styles.lineInRange, pressed && styles.pressed]}
     >
       {label ? <Text style={styles.speaker}>{label}</Text> : null}
       {hidden ? (
         <HiddenAnswer text={text} fontSize={fontSize} lineHeight={lineHeight} />
       ) : (
-        <Text style={[styles.text, { fontSize, lineHeight }, isActive && styles.textActive]}>
+        <Text
+          style={[
+            styles.text,
+            { fontSize, lineHeight },
+            isActive && styles.textActive,
+          ]}
+        >
           {text}
         </Text>
       )}
@@ -186,7 +219,14 @@ const styles = StyleSheet.create({
     paddingBottom: 48,
   },
   line: {
-    marginBottom: 28,
+    marginBottom: 20,
+  },
+  // Lines in the repeat range are indented, with a blue line in the gap. It must stay inside
+  // the ScrollView: anything outside its edges (e.g. a negative margin) is clipped on Android.
+  lineInRange: {
+    borderLeftWidth: 3,
+    borderLeftColor: "#0A84FF",
+    paddingLeft: 16,
   },
   pressed: {
     opacity: 0.6,
