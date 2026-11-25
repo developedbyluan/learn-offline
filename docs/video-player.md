@@ -20,7 +20,7 @@ The layout matches the [audio player](audio-player.md), with the video in place 
 - **Hidden answers:** the same blurred hidden "answer" lines as the [audio player](audio-player.md). The transcript is shared.
 - **Menu:** the same **Favorites** (list icon, back to the favorites list), **Aa** (transcript text size) and **Range** ([play in range](play-range.md)) row as the [audio player](audio-player.md), under the controls.
 - **Resume:** reopening a lesson jumps to where you left off, paused. See [playback-position.md](playback-position.md).
-- **Fullscreen:** the button opens the platform's own fullscreen player, which has its own controls. The transcript isn't shown there. Back, or the exit button, returns to the player at the same position. On Android, JavaScript is paused while fullscreen, which is fine because nothing on the player screen is visible then.
+- **Fullscreen:** the button opens the app's own fullscreen view, in landscape with the system bars hidden. It shows the current subtitle with its speaker over the video, and its own controls. Back, or the exit button, returns to the player at the same position. See [video-fullscreen.md](video-fullscreen.md). (It used to open the platform's native fullscreen, which can't show subtitles.)
 - **Background playback:** while the player is open, the sound keeps playing when you press Home, switch apps or lock the screen. A media notification and the lock screen show the title, author and artwork, with playback controls.
 - **Other apps' audio pauses** when a video plays (`audioMixingMode: "doNotMix"`).
 - **Play at the end** starts again from the beginning, the same as audio.
@@ -65,7 +65,7 @@ The file type comes from `mediaKind(fileUrl)` in `src/data/media.ts`, which retu
   - `timeUpdate` gives `currentTime`.
   - `sourceLoad` gives `duration`. If that event came before the listener was attached, `player.duration` is read once the status is `readyToPlay`.
 - **Seeking:** sets `player.currentTime`, which seeks to the exact frame. `seekBy` can land elsewhere. The assignment sits in a small `seekVideo` helper outside the component, because the React Compiler lint doesn't allow assigning to a value returned by a hook.
-- **Fullscreen:** a ref to the `VideoView` calls `enterFullscreen()`.
+- **Fullscreen:** sets `fullscreen` state and renders `VideoFullscreen` (see [video-fullscreen.md](video-fullscreen.md)). Native `enterFullscreen()` is no longer used.
 
 ## Verification
 
@@ -87,7 +87,7 @@ The file type comes from `mediaKind(fileUrl)` in `src/data/media.ts`, which retu
 Check that:
 1. The player opens with the video in the artwork slot.
 2. Play, Pause, ±5 s, the seek bar and tapping a transcript line all work. The highlight follows the video.
-3. The fullscreen button opens fullscreen with native controls. Going back returns to the player at the same position.
+3. The fullscreen button opens our fullscreen with subtitles. Going back returns to the player at the same position.
 4. The chevron hides the video. The sound keeps playing.
 5. Press Home or lock the screen. The sound continues, and the notification shows the title, author and artwork.
 6. Close the player. The video stops and the notification disappears.

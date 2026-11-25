@@ -181,14 +181,16 @@ const CAN_FILTER_BLUR = Platform.OS === "android" && Number(Platform.Version) >=
 
 // A hidden answer: the normal text, blurred so it can't be read. It's the same Text with
 // the same size, so the line doesn't move when revealed. The radii scale with the size.
-function HiddenAnswer({
+export function HiddenAnswer({
   text,
   fontSize,
   lineHeight,
+  color,
 }: {
   text: string;
   fontSize: number;
   lineHeight: number;
+  color?: string; // the blurred text's color; gray by default
 }) {
   return (
     <View
@@ -201,9 +203,11 @@ function HiddenAnswer({
         style={[
           styles.text,
           { fontSize, lineHeight },
+          color ? { color } : null,
           !CAN_FILTER_BLUR && [
             styles.shadowBlur,
             { textShadowRadius: Math.round(fontSize * 0.6) },
+            color ? { textShadowColor: color } : null,
           ],
         ]}
       >

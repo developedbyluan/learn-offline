@@ -11,6 +11,8 @@ type SeekBarProps = {
   currentTime: number; // seconds
   duration: number; // seconds; 0 until the audio is loaded
   onSeek: (seconds: number) => Promise<void> | void;
+  // "light" draws it for a dark background, e.g. over fullscreen video.
+  tone?: "dark" | "light";
 };
 
 const THUMB_SIZE = 28;
@@ -33,7 +35,8 @@ function clamp01(value: number) {
 
 // A seek bar drawn with React Native's touch handling, so it needs no native slider library.
 // Dragging moves the thumb and the time label; the audio seeks when the finger lifts.
-export default function SeekBar({ currentTime, duration, onSeek }: SeekBarProps) {
+export default function SeekBar({ currentTime, duration, onSeek, tone = "dark" }: SeekBarProps) {
+  const light = tone === "light";
   const [dragRatio, setDragRatio] = useState<number | null>(null);
   // Only read inside touch handlers, never while rendering.
   const widthRef = useRef(0);
@@ -93,8 +96,8 @@ export default function SeekBar({ currentTime, duration, onSeek }: SeekBarProps)
         onResponderRelease={handleRelease}
         onResponderTerminate={() => setDragRatio(null)}
       >
-        <View style={styles.track} pointerEvents="none">
-          <View style={[styles.fill, { width: `${ratio * 100}%` }]} />
+        <View style={[styles.track, light && styles.trackLight]} pointerEvents="none">
+          <View style={[styles.fill, light && styles.fillLight, { width: `${ratio * 100}%` }]} />
         </View>
         <View
           pointerEvents="none"
@@ -102,8 +105,8 @@ export default function SeekBar({ currentTime, duration, onSeek }: SeekBarProps)
         />
       </View>
       <View style={styles.times}>
-        <Text style={styles.timeText}>{formatTime(shownTime)}</Text>
-        <Text style={styles.timeText}>{formatTime(duration)}</Text>
+        <Text style={[styles.timeText, light && styles.timeTextLight]}>{formatTime(shownTime)}</Text>
+        <Text style={[styles.timeText, light && styles.timeTextLight]}>{formatTime(duration)}</Text>
       </View>
     </View>
   );
@@ -147,5 +150,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#000000",
     fontVariant: ["tabular-nums"],
+  },
+  trackLight: {
+    backgroundColor: "rgba(255, 255, 255, 0.35)",
+  },
+  fillLight: {
+    backgroundColor: "#FFFFFF",
+  },
+  timeTextLight: {
+    color: "#FFFFFF",
   },
 });
