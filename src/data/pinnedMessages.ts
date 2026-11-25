@@ -13,7 +13,15 @@ export type MessageLink = {
 // Unix seconds.
 export type PinnedRange = { start: number; end: number };
 
-// Only the fields the app uses. Replies are requested (include=replies) but not shown.
+export type MessageReply = {
+  id: number;
+  userId: string;
+  body: string;
+  createdAt: number;
+};
+
+// Only the fields the app uses. Replies aren't listed; they tell whether the user has
+// answered "I'll be there!" (see attendingReplyIds).
 export type PinnedMessage = {
   id: number;
   displayName: string;
@@ -23,6 +31,7 @@ export type PinnedMessage = {
   pinRank: number | null;
   pinnedRange: PinnedRange | null;
   createdAt: number;
+  replies: MessageReply[];
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -40,6 +49,18 @@ function parseLink(value: unknown): MessageLink | null {
     text: typeof value.text === "string" ? value.text : value.url,
     url: value.url,
     note: typeof value.note === "string" && value.note.trim() ? value.note : null,
+  };
+}
+
+function parseReply(value: unknown): MessageReply | null {
+  if (!isRecord(value)) return null;
+  const id = num(value.id);
+  if (id === null || typeof value.user_id !== "string") return null;
+  return {
+    id,
+    userId: value.user_id,
+    body: typeof value.body === "string" ? value.body : "",
+    createdAt: num(value.created_at) ?? 0,
   };
 }
 
@@ -65,6 +86,9 @@ function parseMessage(value: unknown): PinnedMessage | null {
     pinRank: num(value.pin_rank),
     pinnedRange: parseRange(value.pinned_range),
     createdAt: num(value.created_at) ?? 0,
+    replies: Array.isArray(value.replies)
+      ? value.replies.map(parseReply).filter((reply): reply is MessageReply => reply !== null)
+      : [],
   };
 }
 
@@ -127,4 +151,42 @@ export function formatPinnedRange(range: PinnedRange, nowMs: number): string {
     return `${dayLabel(start, now)}, ${time(start)} – ${time(end)}`;
   }
   return `${dayLabel(start, now)}, ${time(start)} – ${dayLabel(end, now)}, ${time(end)}`;
+}
+
+// The reply the card's button sends.
+export const ATTENDING_REPLY = "I'll be there!";
+
+// Ignores case, spacing and curly vs straight apostrophes, so "I’ll be there!" matches.
+function normalizeReply(text: string) {
+  return text.toLowerCase().replace(/[\u2018\u2019]/g, "'").replace(/\s+/g, " ").trim();
+}
+
+// The user's "I'll be there!" replies on a message. The button shows "going" when there's
+// at least one, and removing deletes all of them, never the user's other replies.
+export function attendingReplyIds(message: PinnedMessage, userId: string): number[] {
+  const target = normalizeReply(ATTENDING_REPLY);
+  return message.replies
+    .filter((reply) => reply.userId === userId && normalizeReply(reply.body) === target)
+    .map((reply) => reply.id);
+}
+
+export async function sendReply(messageId: number, userId: string, body: string) {
+  const res = await fetch(`${COMMONVOCAB_BASE_URL}/messages/${messageId}/replies`, {
+    method: "POST",
+    headers: { Authorization: commonvocabAuthHeader(), "Content-Type": "application/json" },
+    body: JSON.stringify({ user_id: userId, body }),
+  });
+  if (!res.ok) throw new Error(`Sending the reply failed: HTTP ${res.status}`);
+}
+
+// A reply that's already gone (404) counts as deleted.
+export async function deleteReply(replyId: number, userId: string) {
+  const query = new URLSearchParams({ user_id: userId });
+  const res = await fetch(`${COMMONVOCAB_BASE_URL}/replies/${replyId}?${query.toString()}`, {
+    method: "DELETE",
+    headers: { Authorization: commonvocabAuthHeader(), "Content-Type": "application/json" },
+  });
+  if (!res.ok && res.status !== 404) {
+    throw new Error(`Removing the reply failed: HTTP ${res.status}`);
+  }
 }

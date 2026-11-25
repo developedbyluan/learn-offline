@@ -1,5 +1,6 @@
-import { StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import {
+  ATTENDING_REPLY,
   formatPinnedRange,
   isHappeningNow,
   type PinnedMessage,
@@ -21,8 +22,17 @@ function bodyLines(body: string) {
     .filter((line) => line.text);
 }
 
+type Props = {
+  message: PinnedMessage;
+  now: number;
+  // Whether the user has answered "I'll be there!", and whether a request is running.
+  replied: boolean;
+  busy: boolean;
+  onToggleReply: () => void;
+};
+
 // One pinned message. Links aren't shown yet (see docs/pinned-messages.md).
-export default function PinnedCard({ message, now }: { message: PinnedMessage; now: number }) {
+export default function PinnedCard({ message, now, replied, busy, onToggleReply }: Props) {
   const range = message.pinnedRange;
   const live = range !== null && isHappeningNow(range, now);
 
@@ -54,6 +64,29 @@ export default function PinnedCard({ message, now }: { message: PinnedMessage; n
         ),
       )}
       {message.displayName ? <Text style={styles.author}>{message.displayName}</Text> : null}
+      {range && (
+        <Pressable
+          onPress={onToggleReply}
+          disabled={busy}
+          accessibilityRole="switch"
+          accessibilityLabel={ATTENDING_REPLY}
+          accessibilityHint={replied ? "Removes your reply" : "Sends a reply"}
+          accessibilityState={{ checked: replied, busy, disabled: busy }}
+          style={({ pressed }) => [
+            styles.reply,
+            replied ? styles.replyOn : styles.replyOff,
+            pressed && styles.pressed,
+          ]}
+        >
+          {busy ? (
+            <ActivityIndicator color={replied ? "#FFFFFF" : "#0A84FF"} />
+          ) : (
+            <Text style={[styles.replyText, replied && styles.replyTextOn]}>
+              {replied ? `✓ ${ATTENDING_REPLY}` : ATTENDING_REPLY}
+            </Text>
+          )}
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -105,5 +138,33 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontSize: 13,
     color: "#6C6C70",
+  },
+  // "I'll be there!": outlined blue until the user replies, then filled green.
+  reply: {
+    marginTop: 8,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  replyOff: {
+    borderColor: "#0A84FF",
+    backgroundColor: "#FFFFFF",
+  },
+  replyOn: {
+    borderColor: "#34C759",
+    backgroundColor: "#34C759",
+  },
+  replyText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#0A84FF",
+  },
+  replyTextOn: {
+    color: "#FFFFFF",
+  },
+  pressed: {
+    opacity: 0.6,
   },
 });
