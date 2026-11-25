@@ -27,6 +27,8 @@ const ICONS = {
   add: { ios: "plus", material: 0xe145, filled: false }, // add
   repeat: { ios: "repeat", material: 0xe040, filled: false }, // repeat
   setPoint: { ios: "smallcircle.filled.circle", material: 0xe837, filled: false }, // radio_button_checked
+  subtitles: { ios: "captions.bubble.fill", material: 0xe01c, filled: true }, // closed_caption
+  subtitlesOff: { ios: "captions.bubble", material: 0xf1dc, filled: false }, // closed_caption_disabled
 } as const;
 
 export type IconName = keyof typeof ICONS;

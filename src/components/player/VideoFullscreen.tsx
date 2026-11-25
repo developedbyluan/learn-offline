@@ -5,6 +5,7 @@ import {
   BackHandler,
   Pressable,
   StyleSheet,
+  Text,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -16,6 +17,7 @@ import Icon from "@/components/Icon";
 import SeekBar from "@/components/SeekBar";
 import SubtitleOverlay from "@/components/player/SubtitleOverlay";
 import type { TranscriptLine } from "@/data/media";
+import { useFullscreenSubtitles } from "@/data/fullscreenSubtitles";
 
 // Our own fullscreen for video, used instead of expo-video's native one, which pauses
 // JavaScript on Android and can't show anything on top. It's a layer over the whole player
@@ -25,6 +27,8 @@ import type { TranscriptLine } from "@/data/media";
 const SKIP_SECONDS = 5;
 // While playing, the controls hide after this long.
 const CONTROLS_TIMEOUT_MS = 3000;
+// How long "Subtitles on/off" stays on screen.
+const TOAST_MS = 1500;
 
 type Props = {
   player: VideoPlayer;
@@ -64,6 +68,16 @@ export default function VideoFullscreen({
   const [controlsShown, setControlsShown] = useState(true);
   const [screenReader, setScreenReader] = useState(false);
   const [opacity] = useState(() => new Animated.Value(1));
+  const [subtitlesShown, toggleSubtitles] = useFullscreenSubtitles();
+  const [toast, setToast] = useState<string | null>(null);
+  const hasLines = lines !== null && lines.length > 0;
+
+  // The toast hides itself; a new one restarts the timer.
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), TOAST_MS);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   // Landscape and no system bars while open; back to portrait when closed, even if the
   // player screen itself closes.
@@ -147,7 +161,7 @@ export default function VideoFullscreen({
           { bottom: (visible ? 96 : 24) + insets.bottom },
         ]}
       >
-        {lines && lines.length > 0 && (
+        {hasLines && subtitlesShown && (
           <SubtitleOverlay lines={lines} currentTime={currentTime} duration={duration} />
         )}
       </View>
@@ -170,6 +184,28 @@ export default function VideoFullscreen({
         >
           <Icon name="fullscreenExit" size={24} color="#FFFFFF" />
         </Pressable>
+
+        {hasLines && (
+          <Pressable
+            onPress={() => {
+              touched();
+              const shown = toggleSubtitles();
+              setToast(shown ? "Subtitles on" : "Subtitles off");
+            }}
+            hitSlop={10}
+            accessibilityRole="switch"
+            accessibilityLabel={subtitlesShown ? "Hide subtitles" : "Show subtitles"}
+            accessibilityState={{ checked: subtitlesShown }}
+            style={({ pressed }) => [
+              styles.roundButton,
+              styles.exitButton,
+              { top: 16 + insets.top, right: 16 + insets.right + ROUND_BUTTON_SIZE + 12 },
+              pressed && styles.pressed,
+            ]}
+          >
+            <Icon name={subtitlesShown ? "subtitles" : "subtitlesOff"} size={24} color="#FFFFFF" />
+          </Pressable>
+        )}
 
         <View style={styles.centerControls} pointerEvents="box-none">
           <Pressable
@@ -226,6 +262,16 @@ export default function VideoFullscreen({
           />
         </View>
       </Animated.View>
+
+      {toast && (
+        <View
+          style={[styles.toastRow, { top: 24 + insets.top }]}
+          pointerEvents="none"
+          accessibilityLiveRegion="polite"
+        >
+          <Text style={styles.toast}>{toast}</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -274,5 +320,21 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.6,
+  },
+  toastRow: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    alignItems: "center",
+  },
+  toast: {
+    overflow: "hidden",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 18,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "600",
   },
 });

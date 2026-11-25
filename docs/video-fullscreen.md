@@ -31,9 +31,11 @@ So the app draws its own fullscreen, using the **same video player** in a second
 A line shows only while it's spoken (from `start` until `lineEnd()`), so gaps and the intro show nothing. A lesson without subtitles plays without them. The size is fixed and doesn't follow **Aa**.
 
 **Controls.** Tap the video to show or hide them:
-- **Top right:** exit fullscreen.
+- **Top right:** subtitles on/off (CC), and exit fullscreen.
 - **Center:** back 5 s, Play/Pause, forward 5 s.
 - **Bottom:** the seek bar, in white.
+
+**Subtitles on/off.** The CC button, next to exit, shows or hides the subtitles. A short "Subtitles on" or "Subtitles off" message confirms it. The choice is saved on the phone (`fullscreen-subtitles.json`, in `src/data/fullscreenSubtitles.ts`) for every lesson, and starts on. The button is missing when a lesson has no subtitles. The normal player's transcript isn't affected.
 
 While playing, the controls fade after 3 s without a touch; while paused, they stay. With TalkBack on, they never hide. While they're shown, the subtitle moves up above the seek bar.
 
@@ -50,7 +52,8 @@ While playing, the controls fade after 3 s without a touch; while paused, they s
 | `src/components/player/VideoPlayerScreen.tsx` | `fullscreen` state. The inline `VideoView` is removed while fullscreen, so the player is attached to one view at a time. |
 | `src/components/Transcript.tsx` | `HiddenAnswer` is exported, with an optional `color`. |
 | `src/components/SeekBar.tsx` | `tone="light"` for dark backgrounds. |
-| `src/components/Icon.tsx` | `fullscreenExit` (Material `fullscreen_exit`). |
+| `src/components/Icon.tsx` | `fullscreenExit`, `subtitles` and `subtitlesOff` (Material `fullscreen_exit`, `closed_caption`, `closed_caption_disabled`). |
+| `src/data/fullscreenSubtitles.ts` | The saved subtitles on/off choice. |
 | `package.json` | `expo-screen-orientation` and `expo-navigation-bar`, both native, so a **new development build** is needed. |
 
 **Why a layer, not a `Modal`.** It's an absolutely positioned layer over the player screen. An RN `Modal` on Android is a separate dialog window, and hiding the navigation bar only affects the app's main window.
