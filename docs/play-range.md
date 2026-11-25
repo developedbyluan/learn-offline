@@ -23,7 +23,7 @@ Repeats a part of a lesson, such as one sentence or a question and its answer, o
 
 **Long-press a subtitle line** to stretch the range to include it. Start becomes the earlier of the two starts, and End the later of the two ends. A normal tap still seeks. TalkBack users get this as the line action "Add to repeat range".
 
-**Which lines are marked.** Lines that overlap the range are shown in light blue (`#64AEFF`). The line being spoken stays black.
+**Which lines are marked.** Lines that overlap the range are indented, with a 3 pt blue (`#0A84FF`) line in the gap on the left. The text keeps its usual colors. (The line must stay inside the transcript's ScrollView: an earlier version used a negative margin, and Android clipped it.)
 
 **Looping.** When playback runs across End from inside the range, it jumps back to Start and keeps playing.
 - **Seeking past End, or before Start, doesn't loop or clear the range.** That's how you find a new point for ◎: drag the seek bar past End, play, and tap End ◎ at the right moment.
@@ -41,7 +41,7 @@ Repeats a part of a lesson, such as one sentence or a question and its answer, o
 | --- | --- |
 | `src/hooks/usePlayRange.ts` (new) | `usePlayRange({ currentTime, playing, onSeek })` keeps `range` and runs the loop. Pure helpers: `lineEnd`, `rangeForLine`, `initialRange`, `rangeWithoutLines`, `extendRange`, `withStart`, `withEnd`. |
 | `src/components/player/PlayerLayout.tsx` | The Range menu button, the `RangeEnd` controls in place of ±5 s, toasts, and Play restarting the range. |
-| `src/components/Transcript.tsx` | `range` and `onLineLongPress` props, `lineInRange`, the light-blue text, and the accessibility action. |
+| `src/components/Transcript.tsx` | `range` and `onLineLongPress` props, `lineInRange`, the blue left line, and the accessibility action. |
 | `src/components/Icon.tsx` | `repeat` and `setPoint` (◎, Material `radio_button_checked`). |
 
 **How the loop is detected.** It's a natural crossing, not a jump. Between two time updates:

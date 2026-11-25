@@ -154,7 +154,7 @@ const Line = memo(function Line({
       onAccessibilityAction={(event) => {
         if (event.nativeEvent.actionName === "longpress") onLongPress?.(index);
       }}
-      style={({ pressed }) => [styles.line, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.line, inRange && styles.lineInRange, pressed && styles.pressed]}
     >
       {label ? <Text style={styles.speaker}>{label}</Text> : null}
       {hidden ? (
@@ -164,7 +164,6 @@ const Line = memo(function Line({
           style={[
             styles.text,
             { fontSize, lineHeight },
-            inRange && styles.textInRange,
             isActive && styles.textActive,
           ]}
         >
@@ -222,6 +221,13 @@ const styles = StyleSheet.create({
   line: {
     marginBottom: 28,
   },
+  // Lines in the repeat range are indented, with a blue line in the gap. It must stay inside
+  // the ScrollView: anything outside its edges (e.g. a negative margin) is clipped on Android.
+  lineInRange: {
+    borderLeftWidth: 3,
+    borderLeftColor: "#0A84FF",
+    paddingLeft: 16,
+  },
   pressed: {
     opacity: 0.6,
   },
@@ -233,10 +239,6 @@ const styles = StyleSheet.create({
   },
   text: {
     color: "#A1A1A6",
-  },
-  // Lines in the repeat range. The line being spoken stays black.
-  textInRange: {
-    color: "#64AEFF",
   },
   textActive: {
     color: "#000000",
