@@ -21,7 +21,7 @@ Authorization: Basic <EXPO_PUBLIC_COMMONVOCAB_API_USER:EXPO_PUBLIC_COMMONVOCAB_A
 | `display_name` | the small gray name under the text |
 | `pin_rank` | the order: lowest first, unranked last, then newest `created_at` |
 | `pinned_range` `{start, end}` | the time label, the **Now** tag, and hiding ended messages |
-| `links` `[{id, text, url, note}]` | parsed but **not shown yet** (see below) |
+| `links` `[{id, text, url, note}]` | link pills, shown only after "I'll be there!" (see [Replying](#replying)) |
 | `replies` `[{id, user_id, body}]` | the user's own "I'll be there!" replies, for the reply button (see [Replying](#replying)). Replies aren't listed. |
 
 Replies come from `include=replies`. Other fields (`allowed_roles`, `secret`, `tags`, …) are ignored.
@@ -36,7 +36,7 @@ Replies come from `include=replies`. Other fields (`allowed_roles`, `secret`, `t
   - **Who:** the poster's `display_name`.
   - **The "I'll be there!" button:** only on messages with a time window (see [Replying](#replying)).
 - **Ended messages:** once `pinned_range.end` has passed, the message is hidden, checked against the time of the last load. A message without `pinned_range` always shows.
-- **Links are hidden for now.** They'll be shown only under conditions still to be decided. They're kept on `PinnedMessage.links` for that.
+- **Links show only after "I'll be there!"** See [Replying](#replying).
 - **Other states:**
   - **Signed out:** "Sign in to see pinned messages."
   - **Empty:** "No pinned messages right now."
@@ -66,6 +66,10 @@ Both use the same Basic credentials as the list.
   - **The button:** it keeps its state.
   - **The toast:** "You're offline. Try again when you're connected." when offline, otherwise "Couldn't send your reply. Try again." or "Couldn't remove your reply. Try again."
   - **A partial remove:** if some of several deletes fail, the reload shows what's left.
+- **Links:** while the button is green, the message's links appear under it as blue pills, labelled "Zoom · 20:30" (`text`, plus ` · note` when there is one). They appear as soon as the button turns green and disappear when the reply is removed.
+  - **Opening:** a tap opens the URL with the phone, in the Zoom app or the browser.
+  - **Why not `canOpenURL`:** on Android 11+ it says no for apps not declared in `<queries>`, so it isn't used.
+  - **Bad links:** a malformed URL, or one that fails to open, shows "Couldn't open this link."
 - **Reminder:** saying "I'll be there!" also schedules a notification 30 minutes before the event starts, and removing the reply cancels it. See [event-reminders.md](event-reminders.md).
 
 ## How it's built
@@ -73,7 +77,7 @@ Both use the same Basic credentials as the list.
 | File | What it does |
 | --- | --- |
 | `src/app/(tabs)/pinned.tsx` | The tab: loads on focus (`useFocusEffect`), pull to refresh, aborts stale requests, and handles the states above. It also runs the reply toggle, with per-message busy flags and local "on/off" overrides that are dropped once a reload agrees. |
-| `src/components/PinnedCard.tsx` | One card: the time label, Now tag, markdown headings and text, the name, and the "I'll be there!" toggle. |
+| `src/components/PinnedCard.tsx` | One card: the time label, Now tag, markdown headings and text, the name, the "I'll be there!" toggle, and the link pills. |
 | `src/data/pinnedMessages.ts` | `fetchPinnedMessages` with loose validation, `visiblePinned` for filtering and sorting, and `formatPinnedRange` and `isHappeningNow`. Also `attendingReplyIds`, `sendReply` and `deleteReply`. |
 | `src/data/api.ts` | `COMMONVOCAB_BASE_URL` and `commonvocabAuthHeader()`. |
 | `src/app/(tabs)/_layout.tsx` | The Pinned tab, between Sessions and Settings. |

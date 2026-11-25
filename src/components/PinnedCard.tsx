@@ -1,11 +1,34 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { showToast } from "@/components/feedback/Toast";
 import {
   ATTENDING_REPLY,
   bodyLines,
   formatPinnedRange,
   isHappeningNow,
+  type MessageLink,
   type PinnedMessage,
 } from "@/data/pinnedMessages";
+
+// Opens a link with the phone (e.g. the Zoom app or the browser). canOpenURL isn't used:
+// on Android 11+ it says no for apps not listed in <queries>.
+function openLink(url: string) {
+  let valid = true;
+  try {
+    new URL(url); // Throws for a malformed URL.
+  } catch {
+    valid = false;
+  }
+  if (!valid) {
+    showToast("Couldn't open this link.");
+    return;
+  }
+  Linking.openURL(url).catch((err: unknown) => {
+    console.warn("Couldn't open link", err);
+    showToast("Couldn't open this link.");
+  });
+}
+
+const linkLabel = (link: MessageLink) => (link.note ? `${link.text} · ${link.note}` : link.text);
 
 type Props = {
   message: PinnedMessage;
@@ -16,7 +39,8 @@ type Props = {
   onToggleReply: () => void;
 };
 
-// One pinned message. Links aren't shown yet (see docs/pinned-messages.md).
+// One pinned message. Its links show only once the user has said "I'll be there!"
+// (see docs/pinned-messages.md).
 export default function PinnedCard({ message, now, replied, busy, onToggleReply }: Props) {
   const range = message.pinnedRange;
   const live = range !== null && isHappeningNow(range, now);
@@ -71,6 +95,25 @@ export default function PinnedCard({ message, now, replied, busy, onToggleReply 
             </Text>
           )}
         </Pressable>
+      )}
+      {range && replied && message.links.length > 0 && (
+        <View style={styles.linksRow}>
+          {message.links.map((link) => (
+            <Pressable
+              key={link.id}
+              onPress={() => openLink(link.url)}
+              hitSlop={4}
+              accessibilityRole="link"
+              accessibilityLabel={link.note ? `${link.text}, ${link.note}` : link.text}
+              accessibilityHint="Opens the link"
+              style={({ pressed }) => [styles.linkPill, pressed && styles.pressed]}
+            >
+              <Text style={styles.linkText} numberOfLines={1}>
+                {linkLabel(link)}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
       )}
     </View>
   );
@@ -147,6 +190,25 @@ const styles = StyleSheet.create({
     color: "#0A84FF",
   },
   replyTextOn: {
+    color: "#FFFFFF",
+  },
+  linksRow: {
+    marginTop: 4,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  linkPill: {
+    minHeight: 36,
+    maxWidth: "100%",
+    paddingHorizontal: 16,
+    borderRadius: 18,
+    backgroundColor: "#0A84FF",
+    justifyContent: "center",
+  },
+  linkText: {
+    fontSize: 15,
+    fontWeight: "600",
     color: "#FFFFFF",
   },
   pressed: {

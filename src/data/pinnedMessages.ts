@@ -26,7 +26,7 @@ export type PinnedMessage = {
   id: number;
   displayName: string;
   body: string;
-  // Not shown yet: they'll appear under conditions still to be decided.
+  // Shown on the card only once the user has said "I'll be there!".
   links: MessageLink[];
   pinRank: number | null;
   pinnedRange: PinnedRange | null;
