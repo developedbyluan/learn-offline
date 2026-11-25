@@ -3,8 +3,6 @@ import type { TranscriptLine } from "@/data/media";
 import { activeLineIndex, HiddenAnswer, isAnswerHidden } from "@/components/Transcript";
 import { lineEnd } from "@/hooks/usePlayRange";
 
-const FONT_SIZE = 20;
-const LINE_HEIGHT = 27;
 // Not fully opaque: the blur fallback draws it as a text shadow, which needs some transparency.
 const HIDDEN_COLOR = "rgba(255, 255, 255, 0.9)";
 
@@ -12,12 +10,21 @@ type Props = {
   lines: TranscriptLine[];
   currentTime: number;
   duration: number;
+  // From the shared Aa setting.
+  fontSize: number;
+  lineHeight: number;
 };
 
 // The line being spoken, drawn over fullscreen video like a subtitle, with its speaker:
 // a Q or A badge for questions and answers, or a label such as "Narrator:" above the line.
 // Nothing shows between lines. Answers stay blurred until they're spoken.
-export default function SubtitleOverlay({ lines, currentTime, duration }: Props) {
+export default function SubtitleOverlay({
+  lines,
+  currentTime,
+  duration,
+  fontSize,
+  lineHeight,
+}: Props) {
   const index = activeLineIndex(lines, currentTime);
   if (index < 0 || currentTime >= lineEnd(lines, index, duration)) return null;
 
@@ -27,17 +34,25 @@ export default function SubtitleOverlay({ lines, currentTime, duration }: Props)
   const hidden = isAnswerHidden(line, currentTime);
   const badge = line.speaker === "question" ? "Q" : line.speaker === "answer" ? "A" : null;
   const label = line.speaker.endsWith(":") ? line.speaker : null;
+  // The badge and label grow with the text.
+  const badgeSize = Math.round(fontSize * 1.3);
+  const badgeStyle = {
+    minWidth: badgeSize,
+    height: badgeSize,
+    borderRadius: badgeSize / 2,
+    marginTop: Math.max(0, Math.round((lineHeight - badgeSize) / 2)),
+  };
 
   return (
     <View style={styles.box} pointerEvents="none" accessibilityLiveRegion="polite">
-      {label && <Text style={styles.label}>{label}</Text>}
+      {label && <Text style={[styles.label, { fontSize: Math.round(fontSize * 0.75) }]}>{label}</Text>}
       <View style={styles.row}>
         {badge && (
           <View
-            style={[styles.badge, badge === "Q" ? styles.badgeQuestion : styles.badgeAnswer]}
+            style={[styles.badge, badgeStyle, badge === "Q" ? styles.badgeQuestion : styles.badgeAnswer]}
             accessibilityLabel={badge === "Q" ? "Question" : "Answer"}
           >
-            <Text style={styles.badgeText}>{badge}</Text>
+            <Text style={[styles.badgeText, { fontSize: Math.round(fontSize * 0.7) }]}>{badge}</Text>
           </View>
         )}
         <View style={styles.textBox}>
@@ -45,13 +60,13 @@ export default function SubtitleOverlay({ lines, currentTime, duration }: Props)
             <View accessible accessibilityLabel="Hidden answer">
               <HiddenAnswer
                 text={text}
-                fontSize={FONT_SIZE}
-                lineHeight={LINE_HEIGHT}
+                fontSize={fontSize}
+                lineHeight={lineHeight}
                 color={HIDDEN_COLOR}
               />
             </View>
           ) : (
-            <Text style={styles.text}>{text}</Text>
+            <Text style={[styles.text, { fontSize, lineHeight }]}>{text}</Text>
           )}
         </View>
       </View>
@@ -71,7 +86,6 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   label: {
-    fontSize: 15,
     fontWeight: "600",
     color: "#C7C7CC",
   },
@@ -81,13 +95,9 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   badge: {
-    minWidth: 26,
-    height: 26,
-    borderRadius: 13,
     paddingHorizontal: 6,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 1,
   },
   badgeQuestion: {
     backgroundColor: "#0A84FF",
@@ -96,7 +106,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#34C759",
   },
   badgeText: {
-    fontSize: 14,
     fontWeight: "700",
     color: "#FFFFFF",
   },
@@ -104,8 +113,6 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   text: {
-    fontSize: FONT_SIZE,
-    lineHeight: LINE_HEIGHT,
     color: "#FFFFFF",
     fontWeight: "500",
   },

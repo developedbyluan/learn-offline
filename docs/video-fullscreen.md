@@ -28,10 +28,21 @@ So the app draws its own fullscreen, using the **same video player** in a second
 | A label such as `Narrator:` | the label, in gray, above the line |
 | `""` | just the line |
 
-A line shows only while it's spoken (from `start` until `lineEnd()`), so gaps and the intro show nothing. A lesson without subtitles plays without them. The size is fixed and doesn't follow **Aa**.
+A line shows only while it's spoken (from `start` until `lineEnd()`), so gaps and the intro show nothing. A lesson without subtitles plays without them. 
+
+**Text size** follows the player's **Aa** setting. It's one shared setting, so changing it in either place changes both. Subtitles are bigger than the transcript at each step, because the video is watched from further away:
+
+| Aa step | Transcript | Fullscreen subtitle |
+| --- | --- | --- |
+| Small | 14 / 20 | 16 / 22 |
+| **Medium** (default) | 16 / 22 | 20 / 27 |
+| Large | 18 / 25 | 24 / 32 |
+| Extra large | 20 / 28 | 28 / 37 |
+
+(Font size / line height.) The Q/A badge and the speaker label grow with the text. The sizes live in `TEXT_SIZES` in `src/data/transcriptTextSize.ts`, which is a shared store: the player stays mounted under fullscreen, so both views update together.
 
 **Controls.** Tap the video to show or hide them:
-- **Top right:** subtitles on/off (CC), and exit fullscreen.
+- **Top right:** text size (Aa, with a "Text size: Large" message), subtitles on/off (CC), and exit fullscreen. Aa and CC are missing when a lesson has no subtitles.
 - **Center:** back 5 s, Play/Pause, forward 5 s.
 - **Bottom:** the seek bar, in white.
 

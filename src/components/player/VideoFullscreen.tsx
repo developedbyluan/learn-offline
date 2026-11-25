@@ -18,6 +18,7 @@ import SeekBar from "@/components/SeekBar";
 import SubtitleOverlay from "@/components/player/SubtitleOverlay";
 import type { TranscriptLine } from "@/data/media";
 import { useFullscreenSubtitles } from "@/data/fullscreenSubtitles";
+import { useTranscriptTextSize } from "@/data/transcriptTextSize";
 
 // Our own fullscreen for video, used instead of expo-video's native one, which pauses
 // JavaScript on Android and can't show anything on top. It's a layer over the whole player
@@ -69,6 +70,7 @@ export default function VideoFullscreen({
   const [screenReader, setScreenReader] = useState(false);
   const [opacity] = useState(() => new Animated.Value(1));
   const [subtitlesShown, toggleSubtitles] = useFullscreenSubtitles();
+  const [textSize, cycleTextSize] = useTranscriptTextSize();
   const [toast, setToast] = useState<string | null>(null);
   const hasLines = lines !== null && lines.length > 0;
 
@@ -162,7 +164,13 @@ export default function VideoFullscreen({
         ]}
       >
         {hasLines && subtitlesShown && (
-          <SubtitleOverlay lines={lines} currentTime={currentTime} duration={duration} />
+          <SubtitleOverlay
+            lines={lines}
+            currentTime={currentTime}
+            duration={duration}
+            fontSize={textSize.subtitleFontSize}
+            lineHeight={textSize.subtitleLineHeight}
+          />
         )}
       </View>
 
@@ -204,6 +212,27 @@ export default function VideoFullscreen({
             ]}
           >
             <Icon name={subtitlesShown ? "subtitles" : "subtitlesOff"} size={24} color="#FFFFFF" />
+          </Pressable>
+        )}
+
+        {hasLines && (
+          <Pressable
+            onPress={() => {
+              touched();
+              setToast(`Text size: ${cycleTextSize().name}`);
+            }}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel={`Subtitle text size: ${textSize.name}`}
+            accessibilityHint="Changes to the next size"
+            style={({ pressed }) => [
+              styles.roundButton,
+              styles.exitButton,
+              { top: 16 + insets.top, right: 16 + insets.right + 2 * (ROUND_BUTTON_SIZE + 12) },
+              pressed && styles.pressed,
+            ]}
+          >
+            <Icon name="textSize" size={24} color="#FFFFFF" />
           </Pressable>
         )}
 
