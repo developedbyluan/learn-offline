@@ -6,7 +6,7 @@ This is real **server push**. The commonvocab worker sends it through Expo's pus
 
 ## Status
 
-**The app code is in place, but Android push won't work until Firebase is set up** (below). Until then, getting the push token fails, and the app logs a warning: "Couldn't update push registration". Nothing else breaks.
+**Firebase is set up** (November 26, 2026): `google-services.json` is in the project root and in `app.json`, and the FCM V1 key is on EAS. Builds from then on can get push tokens. Pushes still need the worker side ([push-server.md](push-server.md)).
 
 ## One-time setup (Firebase + EAS)
 

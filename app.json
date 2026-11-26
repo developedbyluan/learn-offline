@@ -19,7 +19,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.speakfc.speakfcofflineandroid"
+      "package": "com.speakfc.speakfcofflineandroid",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "static",
