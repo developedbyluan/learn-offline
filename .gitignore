@@ -44,3 +44,5 @@ example
 
 # new
 .env
+# Firebase service account keys (uploaded to EAS for push; never commit)
+*-firebase-adminsdk-*.json
